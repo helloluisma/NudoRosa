@@ -3103,6 +3103,30 @@ button.list-row.is-disabled {
 .avatar-sheet__option.is-selected { box-shadow: 0 0 0 2px var(--rosa-fuerte); }
 .avatar-sheet__option img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 
+/* Tarjeta de instalación PWA: mismo .confirm-modal__dialog centrado
+   que las confirmaciones de eliminar, con logo + texto arriba de los
+   botones en vez de una sola pregunta. */
+.install-modal__logo { width: 84px; height: 84px; margin: 0 auto var(--space-3-fl); }
+
+/* Selector con dos clases a propósito: .confirm-modal__dialog p (más
+   arriba) ya fija color/tamaño/peso para cualquier <p> del diálogo, y
+   por especificidad le gana a una sola clase aunque venga después en
+   el archivo. */
+.install-modal__dialog .install-modal__title {
+    margin: 0 0 var(--space-2);
+    color: var(--vino);
+    font-size: 1.15rem;
+    font-weight: 900;
+}
+
+.install-modal__dialog .install-modal__texto {
+    margin: 0 0 var(--space-4-fl);
+    color: var(--texto-suave);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
 /* =========================================================
    15. UTILIDADES
 ========================================================= */

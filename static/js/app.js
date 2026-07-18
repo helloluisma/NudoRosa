@@ -2097,3 +2097,137 @@ function initSeguridad() {
 }
 
 document.addEventListener("DOMContentLoaded", initSeguridad);
+
+/*
+ * Progressive Web App: registro del Service Worker y tarjeta propia
+ * de instalación (nunca el mini-infobar/alert() nativo del
+ * navegador). El registro corre en toda pantalla —incluida
+ * /login— porque Chrome necesita el Service Worker activo para
+ * evaluar si el sitio es instalable, sin importar cuál haya sido la
+ * primera página visitada.
+ */
+function registrarServiceWorker() {
+    if (!("serviceWorker" in navigator)) {
+        return;
+    }
+
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/service-worker.js").catch(() => {
+            // Sin Service Worker no hay instalación posible, pero el
+            // resto de la app funciona igual — no es un error fatal.
+        });
+    });
+}
+
+registrarServiceWorker();
+
+const PWA_SNOOZE_KEY = "nudorosa-instalar-pwa-cerrado-en";
+const PWA_SNOOZE_DIAS = 7;
+
+// Solo existe mientras el navegador no confirme o descarte la
+// instalación: se limpia en cuanto se usa (ver instalarPWA) o cuando
+// appinstalled avisa que ya se instaló.
+let eventoInstalacionDiferido = null;
+
+function appEstaInstalada() {
+    return (
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true
+    );
+}
+
+function puedeMostrarTarjetaInstalacion() {
+    const cerradoEn = Number(localStorage.getItem(PWA_SNOOZE_KEY));
+
+    if (!cerradoEn) {
+        return true;
+    }
+
+    const diasTranscurridos = (Date.now() - cerradoEn) / (1000 * 60 * 60 * 24);
+    return diasTranscurridos >= PWA_SNOOZE_DIAS;
+}
+
+function mostrarFilaInstalarConfiguracion() {
+    const fila = document.querySelector("#config-install-row");
+    if (fila) {
+        fila.hidden = false;
+    }
+}
+
+function ocultarFilaInstalarConfiguracion() {
+    const fila = document.querySelector("#config-install-row");
+    if (fila) {
+        fila.hidden = true;
+    }
+}
+
+function mostrarTarjetaInstalacion() {
+    document.querySelector("#install-pwa-modal")?.removeAttribute("hidden");
+}
+
+function ocultarTarjetaInstalacion() {
+    const modal = document.querySelector("#install-pwa-modal");
+    if (modal) {
+        modal.hidden = true;
+    }
+}
+
+function posponerInstalacion() {
+    localStorage.setItem(PWA_SNOOZE_KEY, String(Date.now()));
+    ocultarTarjetaInstalacion();
+}
+
+async function instalarPWA() {
+    if (!eventoInstalacionDiferido) {
+        return;
+    }
+
+    const evento = eventoInstalacionDiferido;
+    evento.prompt();
+    await evento.userChoice;
+
+    // La respuesta ya llegó (aceptada o rechazada): el evento no se
+    // puede reutilizar en ninguno de los dos casos.
+    ocultarTarjetaInstalacion();
+    eventoInstalacionDiferido = null;
+    ocultarFilaInstalarConfiguracion();
+}
+
+function initInstalacionPWA() {
+    // Ya instalada y corriendo en modo standalone: ni el aviso ni la
+    // opción del menú tienen sentido.
+    if (appEstaInstalada()) {
+        return;
+    }
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+        // Evita el mini-infobar propio de Chrome — el aviso lo decide
+        // esta app, con su propio diseño.
+        event.preventDefault();
+        eventoInstalacionDiferido = event;
+
+        mostrarFilaInstalarConfiguracion();
+
+        if (puedeMostrarTarjetaInstalacion()) {
+            mostrarTarjetaInstalacion();
+        }
+    });
+
+    window.addEventListener("appinstalled", () => {
+        eventoInstalacionDiferido = null;
+        ocultarTarjetaInstalacion();
+        ocultarFilaInstalarConfiguracion();
+        localStorage.removeItem(PWA_SNOOZE_KEY);
+    });
+
+    document.querySelector("#install-pwa-accept")?.addEventListener("click", instalarPWA);
+    document.querySelector("#install-pwa-dismiss")?.addEventListener("click", posponerInstalacion);
+    document.querySelector("#config-install-button")?.addEventListener("click", instalarPWA);
+
+    // El fondo del modal no usa el cierre genérico ([data-modal-close]
+    // en initModalDismiss): cerrar tocando afuera cuenta como "Ahora
+    // no" y también debe respetar los 7 días de espera.
+    document.querySelector("#install-pwa-modal .modal__backdrop")?.addEventListener("click", posponerInstalacion);
+}
+
+document.addEventListener("DOMContentLoaded", initInstalacionPWA);

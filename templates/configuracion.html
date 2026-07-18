@@ -31,6 +31,20 @@
     <!-- Solo interfaz por ahora: cada fila se conecta a su propia
          lógica en una siguiente iteración. -->
     <ul class="list">
+        <!-- Solo visible cuando el navegador confirmó (evento
+             beforeinstallprompt) que la app puede instalarse; lo
+             muestra/oculta initInstalacionPWA() en app.js. -->
+        <li id="config-install-row" hidden>
+            <button type="button" class="list-row" id="config-install-button">
+                <span class="list-row__avatar" aria-hidden="true">📲</span>
+                <span class="list-row__body">
+                    <strong>Instalar aplicación</strong>
+                    <small>Agrégala a tu pantalla de inicio</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </button>
+        </li>
+
         <li>
             <div class="list-row">
                 <span class="list-row__avatar" aria-hidden="true">🏬</span>

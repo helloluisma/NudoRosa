@@ -12,16 +12,27 @@
         content="width=device-width, initial-scale=1.0"
     >
 
+    <!-- #861742 = var(--vino): un <meta> no puede leer variables CSS,
+         así que se repite el valor a mano acá y en manifest.webmanifest. -->
     <meta
         name="theme-color"
-        content="#feebeb"
+        content="#861742"
     >
+
+    <link rel="manifest" href="{{ url_for('static', path='/manifest.webmanifest') }}">
+
+    <!-- PWA en iOS/Safari no lee manifest.webmanifest para estos
+         datos: hacen falta estas etiquetas aparte. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Nudo Rosa">
+    <link rel="apple-touch-icon" href="{{ url_for('static', path='/icons/apple-touch-icon.png') }}">
 
     <title>{% block title %}Nudo Rosa by Ivanna{% endblock %}</title>
 
     <link
         rel="stylesheet"
-        href="{{ url_for('static', path='/css/styles.css') }}?v=7"
+        href="{{ url_for('static', path='/css/styles.css') }}?v=8"
     >
 </head>
 
@@ -32,6 +43,41 @@
         {% include "_bottom_nav.html" %}
         {% endif %}
     </main>
+
+    <!-- Aviso de instalación PWA: tarjeta propia (no el mini-infobar
+         nativo del navegador), controlada desde app.js según el evento
+         beforeinstallprompt. Vive en _base.html porque debe poder
+         aparecer en cualquier pantalla, incluida /login. -->
+    <div class="modal" id="install-pwa-modal" hidden>
+        <div class="modal__backdrop"></div>
+
+        <div
+            class="modal__dialog confirm-modal__dialog install-modal__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="install-modal-title"
+        >
+            <img
+                class="install-modal__logo"
+                src="{{ url_for('static', path='/images/logo.png') }}"
+                alt="Nudo Rosa"
+            >
+
+            <p class="install-modal__title" id="install-modal-title">Instala Nudo Rosa</p>
+            <p class="install-modal__texto">
+                Agrega Nudo Rosa a tu celular para abrirla rápidamente como una aplicación.
+            </p>
+
+            <div class="confirm-modal__actions">
+                <button type="button" class="confirm-modal__no" id="install-pwa-dismiss">
+                    Ahora no
+                </button>
+                <button type="button" class="confirm-modal__yes" id="install-pwa-accept">
+                    Instalar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script src="{{ url_for('static', path='/js/app.js') }}"></script>
 </body>

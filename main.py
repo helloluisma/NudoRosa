@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -355,7 +355,10 @@ app.mount(
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-RUTAS_PUBLICAS = {"/login"}
+# /service-worker.js tiene que poder pedirse sin sesión iniciada (p.
+# ej. Chrome revisando si el sitio es instalable desde /login) — no es
+# información de negocio, solo el script de caché de estáticos.
+RUTAS_PUBLICAS = {"/login", "/service-worker.js"}
 
 
 @app.middleware("http")
@@ -451,6 +454,26 @@ def _saludo_ivanna(hora: int) -> list[str]:
         return ["¡Buenas tardes! 💕", "¡Qué gusto verte!", "¿Lista para atender a tus clientas?"]
 
     return ["¡Buenas noches! 🎀", "Terminemos los pedidos del día."]
+
+
+RUTA_SERVICE_WORKER = BASE_DIR / "static" / "js" / "service-worker.js"
+
+
+@app.get("/service-worker.js")
+async def service_worker():
+    # Se sirve desde la raíz (no /static/service-worker.js) para que
+    # su alcance por defecto cubra toda la app ("/"), no solo /static/.
+    # Cache-Control: no-cache fuerza a que el navegador siempre
+    # revalide el script contra el servidor antes de usarlo, para que
+    # una actualización del Service Worker se detecte de inmediato.
+    return FileResponse(
+        RUTA_SERVICE_WORKER,
+        media_type="application/javascript",
+        headers={
+            "Service-Worker-Allowed": "/",
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 @app.get("/login")
