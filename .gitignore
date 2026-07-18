@@ -46,3 +46,9 @@ dist/
 
 # Archivos temporales
 *.tmp
+
+# Configuración de Claude Code
+.claude/
+
+# Base de datos local
+nudorosa.db
