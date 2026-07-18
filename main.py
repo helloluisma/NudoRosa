@@ -1,6 +1,8 @@
+import logging
 import random
 import re
 import secrets
+from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import quote
@@ -12,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
-from database import get_db
+from database import Base, SessionLocal, engine, get_db
 from models import EstadoEntrega, EstadoPago
 from services import ErrorNegocio
 from services import clientas as clientas_service
@@ -319,7 +321,31 @@ def _etiqueta_rango(inicio: date, fin: date, hoy: date) -> str:
     return f"{_fecha_corta(inicio)} — {_fecha_corta(fin)}"
 
 
-app = FastAPI(title="Nudo Rosa by Ivanna")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("nudorosa")
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # nudorosa.db no se versiona (ver .gitignore): en un despliegue
+    # nuevo (p. ej. Render) el archivo no existe todavía y hay que
+    # crear el esquema y la administradora inicial antes de aceptar
+    # tráfico, o el login queda sin ningún usuario válido.
+    Base.metadata.create_all(bind=engine)
+    logger.info("Base de datos inicializada.")
+
+    db = SessionLocal()
+    try:
+        habia_administrador = seguridad_service.obtener_administrador(db) is not None
+        seguridad_service.asegurar_datos_iniciales(db)
+        logger.info("Usuario administrador ya existente." if habia_administrador else "Usuario administrador creado.")
+    finally:
+        db.close()
+
+    yield
+
+
+app = FastAPI(title="Nudo Rosa by Ivanna", lifespan=_lifespan)
 
 app.mount(
     "/static",
