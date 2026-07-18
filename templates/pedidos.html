@@ -1,0 +1,88 @@
+{% extends "_base.html" %}
+
+{% block title %}Pedidos · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    <!-- Encabezado -->
+    {% set flat_header_back = "/" %}
+    {% set flat_header_back_label = "Regresar al inicio" %}
+    {% set flat_header_title = "Pedidos" %}
+    {% set flat_header_actions = [
+        {"type": "button", "id": "new-order-button", "icon": "/static/images/+.svg", "label": "Registrar venta nueva"}
+    ] %}
+    {% include "_flat_header.html" %}
+
+    <!-- Filtros rápidos -->
+    <div class="pedidos-filters" id="pedidos-filters">
+        <button type="button" class="pedidos-filters__btn is-active" data-filtro="todos">Todos</button>
+        <button type="button" class="pedidos-filters__btn" data-filtro="pendiente">Pendientes</button>
+        <button type="button" class="pedidos-filters__btn" data-filtro="preparacion">En preparación</button>
+        <button type="button" class="pedidos-filters__btn" data-filtro="listo">Listos</button>
+    </div>
+
+    <ul class="list" id="pedidos-list">
+        {% for p in pedidos %}
+        <li data-estado="{{ p.estado_entrega }}">
+            <button
+                type="button"
+                class="list-row"
+                id="pedido-card-{{ p.id }}"
+                data-pedido-id="{{ p.id }}"
+            >
+                <span class="list-row__avatar">
+                    {% if p.cliente.avatar %}
+                    <img src="{{ p.cliente.avatar }}" alt="">
+                    {% else %}
+                    {{ p.cliente.nombre[0] }}
+                    {% endif %}
+                </span>
+
+                <span class="list-row__body">
+                    <strong>#{{ p.numero_venta }} · {{ p.cliente.nombre }} {{ p.cliente.apellido }}</strong>
+                    <small>{{ p.fecha_creacion_texto }}</small>
+                </span>
+
+                <span class="list-row__meta">
+                    <strong>${{ "{:,}".format(p.total) }}</strong>
+                    <span class="pill {{ p.estado_entrega_info.pill_class }}">{{ p.estado_entrega_info.etiqueta }}</span>
+                </span>
+
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </button>
+        </li>
+        {% endfor %}
+
+        <li class="pedidos-empty" id="pedidos-empty" {% if pedidos %}hidden{% endif %}>
+            <span aria-hidden="true">🎀</span>
+            <h2>Aún no hay pedidos</h2>
+            <p>Registra la primera venta de una clienta para verla acá.</p>
+            <button type="button" class="bows-empty__cta" id="pedidos-empty-add">
+                Crear primera venta
+            </button>
+        </li>
+    </ul>
+
+    <p class="client-pick-empty" id="pedidos-filtro-vacio" hidden>
+        No hay pedidos en este filtro.
+    </p>
+
+</section>
+
+{% include "_venta_detalle_modal.html" %}
+
+{% set venta_modal_volver_a = "pedidos" %}
+{% include "_nueva_venta_modal.html" %}
+
+<div class="toast" id="pedido-toast" role="status" aria-live="polite" hidden></div>
+
+<!-- Datos ya renderizados por el servidor, para no duplicar la
+     lista de ventas ni pedirla de nuevo por fetch al abrir un
+     detalle o al reordenar la lista tras un cambio. -->
+<script>
+    const VENTAS_DATA = {{ pedidos | tojson }};
+</script>
+
+{% endblock %}

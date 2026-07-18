@@ -1,0 +1,177 @@
+{% extends "_base.html" %}
+
+{% block content %}
+<section class="home-header">
+    <div class="hero">
+
+        <div
+            class="hero__decorations"
+            aria-hidden="true"
+        >
+            <span class="hero__heart hero__heart--1">♥</span>
+            <span class="hero__heart hero__heart--2">♥</span>
+            <span class="hero__heart hero__heart--3">♥</span>
+            <span class="hero__heart hero__heart--4">♥</span>
+
+            <span class="hero__spark hero__spark--1">✦</span>
+            <span class="hero__spark hero__spark--2">✦</span>
+            <span class="hero__spark hero__spark--3">✦</span>
+            <span class="hero__spark hero__spark--4">✦</span>
+            <span class="hero__spark hero__spark--5">✦</span>
+        </div>
+
+        <div class="hero__logo-area">
+            <img
+                class="hero__logo"
+                src="{{ url_for('static', path='/images/logo.png') }}"
+                alt="Nudo Rosa"
+            >
+        </div>
+
+        <div class="hero__character-area">
+            <div
+                class="hero__glow"
+                aria-hidden="true"
+            ></div>
+
+            <img
+                class="hero__ivanna"
+                src="{{ url_for('static', path='/images/ivanna.png') }}"
+                alt="Ivanna creando lazos"
+            >
+        </div>
+
+        <section class="welcome-card">
+            <div class="welcome-card__mascot">
+                <img
+                    src="{{ url_for('static', path='/images/flor.png') }}"
+                    alt="Rosita"
+                >
+            </div>
+
+            <div class="welcome-card__text">
+                <h1>
+                    ¡Hola, {{ nombre }}!
+
+                    <img
+                        class="welcome-card__icon welcome-card__icon--title"
+                        src="{{ url_for('static', path='/images/lazosencillo.png') }}"
+                        alt=""
+                    >
+                </h1>
+
+                <p>
+                    Qué bueno verte por aquí
+
+                    <img
+                        class="welcome-card__icon welcome-card__icon--text"
+                        src="{{ url_for('static', path='/images/corazon.png') }}"
+                        alt=""
+                    >
+                </p>
+            </div>
+
+        </section>
+
+    </div>
+</section>
+
+<section class="menu">
+    <a class="menu-card" href="/ventas">
+        <span class="menu-card__counter">{{ resumen.ventas_completadas_hoy }}</span>
+        <img class="menu-card__illustration" src="/static/images/ventas.svg" alt="Ventas">
+        <strong>Ventas</strong>
+        <small>{{ resumen.ventas_completadas_hoy }} venta{{ "s" if resumen.ventas_completadas_hoy != 1 else "" }} hoy</small>
+    </a>
+
+    <a class="menu-card" href="/clientes">
+        <span class="menu-card__counter">{{ resumen.clientas_count }}</span>
+        <img class="menu-card__illustration" src="/static/images/cliente.svg" alt="Clientas">
+        <strong>Clientas</strong>
+        <small>{{ resumen.clientas_count }} clienta{{ "s" if resumen.clientas_count != 1 else "" }}</small>
+    </a>
+
+    <a class="menu-card" href="/inventario">
+        <span class="menu-card__counter">{{ productos_count }}</span>
+        <img class="menu-card__illustration" src="/static/images/inventario.svg" alt="Inventario">
+        <strong>Inventario</strong>
+        <small>{{ productos_count }} diseño{{ "s" if productos_count != 1 else "" }}</small>
+    </a>
+
+    <a class="menu-card" href="/cobros">
+        <span class="menu-card__counter">{{ resumen.cobros_pendientes }}</span>
+        <img class="menu-card__illustration" src="/static/images/cobros.svg" alt="Cobros">
+        <strong>Cobros</strong>
+        <small>{{ resumen.cobros_pendientes }} pendiente{{ "s" if resumen.cobros_pendientes != 1 else "" }}</small>
+    </a>
+</section>
+
+<div class="stack-pair">
+
+    <section class="progress-card">
+
+        <div class="progress-card__trophy">
+            <img
+                class="progress-card__icon"
+                src="/static/images/copa.png"
+                alt="Copa"
+            >
+        </div>
+
+        <div class="progress-card__content">
+            <strong>¡Sigue creciendo!</strong>
+            <p>Vas increíble, sigue así</p>
+
+            <div class="progress-card__progress-row">
+                <div class="progress">
+                    <div class="progress__bar" style="width:80%;"></div>
+                    <span class="progress__star">⭐</span>
+                </div>
+
+                <span class="progress-card__score">80/100</span>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="summary-card">
+
+        <div class="summary-card__header">
+            <h3>Resumen del día</h3>
+        </div>
+
+        <div class="summary-grid">
+
+            <div class="summary-item">
+                <img src="/static/images/carrito.svg" alt="Ventas">
+
+                <div class="summary-item__text">
+                    <small>Ventas</small>
+                    <strong>${{ "{:,}".format(resumen.ingresos_hoy) }}</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <img src="/static/images/caja.svg" alt="Pedidos">
+
+                <div class="summary-item__text">
+                    <small>Pedidos</small>
+                    <strong>{{ resumen.ventas_completadas_hoy }}</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <img src="/static/images/dinero.svg" alt="Ganancias">
+
+                <div class="summary-item__text">
+                    <small>Ganancias</small>
+                    <strong>${{ "{:,}".format(resumen.ganancia_hoy) }}</strong>
+                </div>
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+{% endblock %}

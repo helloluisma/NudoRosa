@@ -1,0 +1,32 @@
+<li class="latest-sale">
+
+    <div class="latest-sale__avatar">
+        {% if v.cliente.avatar %}
+        <img
+            src="{{ v.cliente.avatar }}"
+            alt="{{ v.cliente.nombre }}"
+        >
+        {% else %}
+        <span>{{ v.cliente.nombre[0] }}</span>
+        {% endif %}
+    </div>
+
+    <div class="latest-sale__info">
+        <strong>
+            #{{ v.numero_venta }} {{ v.cliente.nombre }} {{ v.cliente.apellido }}
+        </strong>
+
+        <small>
+            {{ v.producto.nombre }} · {{ v.color }}
+        </small>
+    </div>
+
+    <strong class="latest-sale__amount">
+        ${{ "{:,}".format(v.total) }}
+    </strong>
+
+    <span class="latest-sale__status latest-sale__status--delivered">
+        Venta completada
+    </span>
+
+</li>

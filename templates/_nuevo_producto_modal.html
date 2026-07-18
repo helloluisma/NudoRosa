@@ -1,0 +1,89 @@
+<!--
+    Compartido por Inventario y Mis Lazos: ambos crean productos
+    sobre el mismo registro (ver data.PRODUCTOS), así que el "+" de
+    los dos encabezados abre exactamente esta misma hoja inferior.
+-->
+
+<!-- Nuevo producto -->
+<div class="modal modal--sheet" id="new-product-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="new-product-modal-title">
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+        <p class="avatar-sheet__title" id="new-product-modal-title">Nuevo producto</p>
+
+        <form id="new-product-form" class="client-form__fields inventory-sheet-form" enctype="multipart/form-data">
+            <div class="client-form__field">
+                <label for="new-product-imagen-input">Imagen</label>
+
+                <label class="inventory-image-picker" for="new-product-imagen-input">
+                    <span class="inventory-image-picker__preview" id="new-product-preview">
+                        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1-2h7l1 2h2A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5Z"></path>
+                            <circle cx="12" cy="12.5" r="3.4"></circle>
+                        </svg>
+                    </span>
+                    <span class="inventory-image-picker__label">Toca para elegir una foto</span>
+                </label>
+
+                <input type="file" id="new-product-imagen-input" name="imagen" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+
+            <div class="client-form__field">
+                <label for="new-product-nombre">Nombre del producto</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
+                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
+                    </svg>
+                    <input type="text" id="new-product-nombre" name="nombre" placeholder="Ej. Lazo Mini Corazón" required>
+                </div>
+            </div>
+
+            <div class="client-form__field">
+                <label for="new-product-costo">Costo de producción</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
+                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
+                    </svg>
+                    <input type="number" id="new-product-costo" name="costo_produccion" min="0" step="1" placeholder="Ej. 80" required>
+                </div>
+            </div>
+
+            <div class="client-form__field">
+                <label for="new-product-precio">Precio al público</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
+                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
+                    </svg>
+                    <input type="number" id="new-product-precio" name="precio_publico" min="0" step="1" placeholder="Ej. 150" required>
+                </div>
+            </div>
+
+            <div class="client-form__field">
+                <label for="new-product-stock">Stock inicial</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    <input type="number" id="new-product-stock" name="stock_inicial" min="0" step="1" placeholder="Ej. 10" required>
+                </div>
+            </div>
+
+            <p class="inventory-modal__error" id="new-product-error" hidden></p>
+
+            <div class="inventory-modal__actions">
+                <button type="submit" class="client-form__submit">
+                    <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                    <span>Guardar producto</span>
+                </button>
+                <button type="button" class="confirm-modal__no" data-modal-close>Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Mensaje de éxito, reutilizado por cualquier acción sobre productos -->
+<div class="toast" id="producto-toast" role="status" aria-live="polite" hidden></div>

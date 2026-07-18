@@ -1,0 +1,265 @@
+{% extends "_base.html" %}
+
+{% block title %}Mis Lazos · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    <!-- Encabezado -->
+    {% set flat_header_back = "/" %}
+    {% set flat_header_back_label = "Regresar al inicio" %}
+    {% set flat_header_title = "Mis Lazos" %}
+    {% set flat_header_actions = [
+        {"type": "button", "id": "new-product-button", "icon": "/static/images/+.svg", "label": "Registrar un nuevo modelo"}
+    ] %}
+    {% include "_flat_header.html" %}
+
+    <label class="bows-search">
+        <span aria-hidden="true">⌕</span>
+
+        <input
+            id="bows-search-input"
+            type="search"
+            placeholder="Buscar un diseño..."
+            autocomplete="off"
+        >
+    </label>
+
+    <div class="bows-grid" id="bows-grid">
+
+        {% for p in productos %}
+
+        <button
+            type="button"
+            class="bow-card"
+            id="bow-card-{{ p.id }}"
+            data-name="{{ p.nombre|lower }}"
+            data-product-id="{{ p.id }}"
+            data-nombre="{{ p.nombre }}"
+            data-imagen="{{ p.imagen }}"
+            data-costo="{{ p.costo_produccion }}"
+            data-precio="{{ p.precio_publico }}"
+            data-stock="{{ p.stock }}"
+        >
+
+            <div class="bow-card__image">
+
+                {% if p.imagen %}
+
+                <img
+                    src="{{ p.imagen }}"
+                    alt="{{ p.nombre }}"
+                    loading="lazy"
+                >
+
+                {% else %}
+
+                <span aria-hidden="true">🎀</span>
+
+                {% endif %}
+
+            </div>
+
+            <strong>{{ p.nombre }}</strong>
+
+        </button>
+
+        {% else %}
+
+        <div class="bows-empty">
+
+            <span aria-hidden="true">🎀</span>
+
+            <h2>Aún no hay modelos</h2>
+
+            <p>
+                Registra el primer diseño de Nudo Rosa.
+            </p>
+
+            <button type="button" class="bows-empty__cta" id="bows-empty-add">
+                Agregar un lazo
+            </button>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    <div
+        class="bows-no-results"
+        id="bows-no-results"
+        hidden
+    >
+        <span aria-hidden="true">🔎</span>
+
+        <strong>No encontramos ese lazo</strong>
+
+        <p>Prueba buscando con otro nombre.</p>
+    </div>
+
+</section>
+
+{% include "_nuevo_producto_modal.html" %}
+
+<!-- Editar / eliminar producto -->
+<div class="modal modal--sheet" id="edit-product-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="edit-product-modal-title">
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+        <p class="avatar-sheet__title" id="edit-product-modal-title">Editar producto</p>
+
+        <form id="edit-product-form" class="client-form__fields inventory-sheet-form" enctype="multipart/form-data">
+            <input type="hidden" id="edit-product-id" name="producto_id">
+
+            <div class="client-form__field">
+                <label for="edit-product-imagen-input">Imagen</label>
+
+                <label class="inventory-image-picker" for="edit-product-imagen-input">
+                    <span class="inventory-image-picker__preview" id="edit-product-preview"></span>
+                    <span class="inventory-image-picker__label">Toca para cambiar la foto</span>
+                </label>
+
+                <input type="file" id="edit-product-imagen-input" name="imagen" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+
+            <div class="client-form__field">
+                <label for="edit-product-nombre">Nombre del producto</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
+                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
+                    </svg>
+                    <input type="text" id="edit-product-nombre" name="nombre" required>
+                </div>
+            </div>
+
+            <div class="client-form__field">
+                <label for="edit-product-costo">Costo de producción</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
+                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
+                    </svg>
+                    <input type="number" id="edit-product-costo" name="costo_produccion" min="0" step="1" required>
+                </div>
+            </div>
+
+            <div class="client-form__field">
+                <label for="edit-product-precio">Precio al público</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
+                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
+                    </svg>
+                    <input type="number" id="edit-product-precio" name="precio_publico" min="0" step="1" required>
+                </div>
+            </div>
+
+            <div class="client-form__field">
+                <label for="edit-product-stock">Stock</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    <input type="number" id="edit-product-stock" name="stock" min="0" step="1" required>
+                </div>
+            </div>
+
+            <p class="inventory-modal__error" id="edit-product-error" hidden></p>
+
+            <div class="inventory-modal__actions">
+                <button type="submit" class="client-form__submit">
+                    <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                    <span>Guardar cambios</span>
+                </button>
+                <button type="button" class="confirm-modal__yes" id="edit-product-delete">
+                    Eliminar producto
+                </button>
+                <button type="button" class="confirm-modal__no" data-modal-close>Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Confirmar eliminación de producto -->
+<div class="modal" id="delete-product-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div
+        class="modal__dialog confirm-modal__dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-product-title"
+    >
+        <p id="delete-product-title">
+            ¿Estás segura que quieres eliminar
+            <strong id="delete-product-name"></strong>
+            del catálogo?
+        </p>
+
+        <div class="confirm-modal__actions">
+            <button type="button" class="confirm-modal__no" data-modal-close>
+                No
+            </button>
+
+            <button type="button" class="confirm-modal__yes" id="confirm-delete-product">
+                Sí, eliminar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const searchInput =
+            document.querySelector("#bows-search-input");
+
+        const noResults =
+            document.querySelector("#bows-no-results");
+
+        function normalizeText(value) {
+            return value
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function filterBows() {
+            const query = normalizeText(
+                searchInput.value.trim()
+            );
+
+            let visibleCards = 0;
+
+            // Se consulta de nuevo en cada busqueda (no una sola vez
+            // al cargar) porque "Nuevo producto" agrega tarjetas sin
+            // recargar la pagina.
+            document.querySelectorAll("#bows-grid .bow-card").forEach((card) => {
+                const name = normalizeText(
+                    card.dataset.name || ""
+                );
+
+                const shouldShow =
+                    !query || name.includes(query);
+
+                card.hidden = !shouldShow;
+
+                if (shouldShow) {
+                    visibleCards += 1;
+                }
+            });
+
+            noResults.hidden = visibleCards !== 0;
+        }
+
+        searchInput?.addEventListener(
+            "input",
+            filterBows
+        );
+    });
+</script>
+
+{% endblock %}

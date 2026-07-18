@@ -1,0 +1,193 @@
+{% extends "_base.html" %}
+
+{% block title %}Configuración · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    {% set flat_header_back = "/" %}
+    {% set flat_header_back_label = "Regresar al inicio" %}
+    {% set flat_header_title = "Configuración" %}
+    {% include "_flat_header.html" %}
+
+    <h2 class="section-title">Seguridad</h2>
+
+    <ul class="list">
+        <li>
+            <button type="button" class="list-row" id="seguridad-row">
+                <span class="list-row__avatar" aria-hidden="true">🔒</span>
+                <span class="list-row__body">
+                    <strong>Seguridad</strong>
+                    <small id="seguridad-subtitulo">Usuario: {{ seguridad.usuario }}</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </button>
+        </li>
+    </ul>
+
+    <h2 class="section-title">General</h2>
+
+    <!-- Solo interfaz por ahora: cada fila se conecta a su propia
+         lógica en una siguiente iteración. -->
+    <ul class="list">
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">🏬</span>
+                <span class="list-row__body">
+                    <strong>Información del negocio</strong>
+                    <small>Nombre, dirección y contacto</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">💳</span>
+                <span class="list-row__body">
+                    <strong>Métodos de pago</strong>
+                    <small>Efectivo, transferencia y más</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">🎨</span>
+                <span class="list-row__body">
+                    <strong>Colores disponibles</strong>
+                    <small>Paleta de colores para tus lazos</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">📅</span>
+                <span class="list-row__body">
+                    <strong>Días para pagar</strong>
+                    <small>{{ configuracion.dias_credito }} días de plazo por defecto</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">📦</span>
+                <span class="list-row__body">
+                    <strong>Límite de poco stock</strong>
+                    <small>Avisar cuando queden {{ configuracion.limite_poco_stock }} unidades o menos</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">📤</span>
+                <span class="list-row__body">
+                    <strong>Exportar respaldo</strong>
+                    <small>Guarda una copia de tus datos</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">📥</span>
+                <span class="list-row__body">
+                    <strong>Importar respaldo</strong>
+                    <small>Restaura datos desde un archivo</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+
+        <li>
+            <div class="list-row">
+                <span class="list-row__avatar" aria-hidden="true">💡</span>
+                <span class="list-row__body">
+                    <strong>Acerca de Nudo Rosa</strong>
+                    <small>Versión y datos de la app</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+    </ul>
+
+    <ul class="list" style="margin-top: var(--space-3-fl);">
+        <li>
+            <form method="post" action="/logout">
+                <button type="submit" class="list-row">
+                    <span class="list-row__avatar" aria-hidden="true">🚪</span>
+                    <span class="list-row__body">
+                        <strong>Cerrar sesión</strong>
+                        <small>Salir de tu cuenta</small>
+                    </span>
+                </button>
+            </form>
+        </li>
+    </ul>
+
+</section>
+
+<!-- Editar nombre / usuario / contraseña del administrador. -->
+<div class="modal modal--sheet" id="seguridad-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="seguridad-modal-title">
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+        <p class="avatar-sheet__title" id="seguridad-modal-title">Seguridad</p>
+
+        <form class="inventory-sheet-form" id="seguridad-form">
+            <div class="client-form__field">
+                <label for="seguridad-nombre">Nombre del administrador</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="8" r="3.4"></circle>
+                        <path d="M5.5 19.2c1-3.2 3.8-5 6.5-5s5.5 1.8 6.5 5"></path>
+                    </svg>
+                    <input type="text" id="seguridad-nombre" name="nombre_administrador" value="{{ seguridad.nombre_administrador }}" required>
+                </div>
+            </div>
+
+            <div class="client-form__field" style="margin-top: var(--space-3-fl);">
+                <label for="seguridad-usuario">Usuario</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3.5" y="5.5" width="17" height="13" rx="2.5"></rect>
+                        <path d="m4.5 7 7.5 6 7.5-6"></path>
+                    </svg>
+                    <input type="text" id="seguridad-usuario" name="usuario" value="{{ seguridad.usuario }}" required>
+                </div>
+            </div>
+
+            <div class="client-form__field" style="margin-top: var(--space-3-fl);">
+                <label for="seguridad-password">Nueva contraseña</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="5.5" y="10.5" width="13" height="9" rx="2.5"></rect>
+                        <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"></path>
+                    </svg>
+                    <input type="password" id="seguridad-password" name="password" placeholder="Dejar en blanco para no cambiarla" autocomplete="new-password">
+                </div>
+            </div>
+
+            <p class="inventory-modal__error" id="seguridad-error" hidden></p>
+
+            <button type="submit" class="client-form__submit" style="margin-top: var(--space-4-fl);">
+                <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                <span>Guardar cambios</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="toast" id="seguridad-toast" role="status" aria-live="polite" hidden></div>
+
+{% endblock %}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#feebeb"
+    >
+
+    <title>{% block title %}Nudo Rosa by Ivanna{% endblock %}</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='/css/styles.css') }}?v=7"
+    >
+</head>
+
+<body>
+    <main class="app{% if ocultar_barra_inferior %} app--sin-barra{% endif %}">
+        {% block content %}{% endblock %}
+        {% if not ocultar_barra_inferior %}
+        {% include "_bottom_nav.html" %}
+        {% endif %}
+    </main>
+
+    <script src="{{ url_for('static', path='/js/app.js') }}"></script>
+</body>
+</html>

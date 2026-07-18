@@ -1,0 +1,34 @@
+{% extends "_base.html" %}
+
+{% block title %}Más · Nudo Rosa{% endblock %}
+
+{% block content %}
+{% set page_title = "Más" %}
+{% set back_href = "/" %}
+{% include "_page_header.html" %}
+
+<div class="profile-row">
+    <span class="list-row__avatar list-row__avatar--lg">{{ nombre[0] }}</span>
+    <div>
+        <strong>{{ nombre }}</strong>
+        <small>Nudo Rosa · Pequeña diseñadora</small>
+    </div>
+</div>
+
+<h2 class="section-title">Configuración</h2>
+
+<ul class="list">
+    {% for a in ajustes %}
+    <li>
+        <div class="list-row">
+            <span class="list-row__avatar" aria-hidden="true">{{ a.icono }}</span>
+            <span class="list-row__body">
+                <strong>{{ a.titulo }}</strong>
+                <small>{{ a.subtitulo }}</small>
+            </span>
+            <span class="list-row__chevron" aria-hidden="true">›</span>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

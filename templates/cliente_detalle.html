@@ -1,0 +1,214 @@
+{% extends "_base.html" %}
+
+{% block title %}{{ cliente.nombre }} {{ cliente.apellido }} · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    <!-- Encabezado -->
+    {% set flat_header_back = "/clientes" %}
+    {% set flat_header_back_label = "Volver a Clientas" %}
+    {% set flat_header_title = "Clienta" %}
+    {% set flat_header_actions = [
+        {"href": "/clientes/%d/editar" % cliente.id, "icon": "/static/images/editar.svg", "label": "Editar clienta"},
+        {"type": "button", "id": "delete-client-button", "icon": "/static/images/eliminar.svg", "label": "Eliminar clienta"}
+    ] %}
+    {% include "_flat_header.html" %}
+
+    <div class="client-profile">
+        <div class="client-profile__avatar-wrap">
+            <div class="client-profile__decorations" aria-hidden="true">
+                <span class="client-profile__heart client-profile__heart--1">♥</span>
+                <span class="client-profile__heart client-profile__heart--2">♥</span>
+                <span class="client-profile__heart client-profile__heart--3">♥</span>
+                <span class="client-profile__spark client-profile__spark--1">✦</span>
+                <span class="client-profile__spark client-profile__spark--2">✦</span>
+                <span class="client-profile__spark client-profile__spark--3">✦</span>
+            </div>
+
+            <span class="client-profile__avatar">
+                {% if cliente.avatar %}
+                <img src="{{ cliente.avatar }}" alt="">
+                {% else %}
+                {{ cliente.nombre[0] }}
+                {% endif %}
+            </span>
+        </div>
+
+        <div class="client-profile__info">
+            <strong class="client-profile__name">{{ cliente.nombre }} {{ cliente.apellido }}</strong>
+            <small class="client-profile__meta">Clienta desde {{ cliente.desde }}</small>
+
+            {% if insignias %}
+            <div class="client-badges">
+                {% for insignia in insignias %}
+                <span class="pill pill--{{ insignia.tono }}">
+                    <span aria-hidden="true">{{ insignia.icono }}</span> {{ insignia.texto }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="client-stats">
+        <div class="client-stat-card">
+            <img class="client-stat-card__icon" src="/static/images/caja.svg" alt="">
+            <strong>{{ cliente.pedidos }}</strong>
+            <small>Pedidos realizados</small>
+        </div>
+
+        <div class="client-stat-card">
+            <img class="client-stat-card__icon" src="/static/images/dinero.svg" alt="">
+            <strong>${{ "{:,}".format(cliente.gastado) }}</strong>
+            <small>Total gastado</small>
+        </div>
+    </div>
+
+    <section class="client-info-card">
+        <h2 class="section-title">Información personal</h2>
+
+        <ul class="client-info-list">
+            <li class="client-info-row">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="8" r="3.4"></circle>
+                    <path d="M5.5 19.2c1-3.2 3.8-5 6.5-5s5.5 1.8 6.5 5"></path>
+                </svg>
+                <div class="client-info-row__text">
+                    <small>Nombre</small>
+                    <strong>{{ cliente.nombre }} {{ cliente.apellido }}</strong>
+                </div>
+            </li>
+
+            <li class="client-info-row">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6 3.5h3l1.6 4-2.1 1.7a12.4 12.4 0 0 0 5.6 5.6l1.7-2.1 4 1.6v3a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4 6.7 2 2 0 0 1 6 3.5Z"></path>
+                </svg>
+                <div class="client-info-row__text">
+                    <small>Teléfono</small>
+                    <strong>{{ cliente.telefono }}</strong>
+                </div>
+            </li>
+
+            {% if cliente.fecha_nacimiento %}
+            <li class="client-info-row">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4" y="5.5" width="16" height="14" rx="3"></rect>
+                    <path d="M4 10h16M8 3.5v3M16 3.5v3"></path>
+                </svg>
+                <div class="client-info-row__text">
+                    <small>Fecha de nacimiento</small>
+                    <strong>{{ cliente.fecha_nacimiento }}</strong>
+                </div>
+            </li>
+            {% endif %}
+
+            {% if cliente.direccion %}
+            <li class="client-info-row">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 21s-6.5-5.8-6.5-10.8A6.5 6.5 0 0 1 12 3.7a6.5 6.5 0 0 1 6.5 6.5C18.5 15.2 12 21 12 21Z"></path>
+                    <circle cx="12" cy="10.2" r="2.2"></circle>
+                </svg>
+                <div class="client-info-row__text">
+                    <small>Dirección</small>
+                    <strong>{{ cliente.direccion }}</strong>
+                </div>
+            </li>
+            {% endif %}
+
+            {% if cliente.email %}
+            <li class="client-info-row">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3.5" y="5.5" width="17" height="13" rx="2.5"></rect>
+                    <path d="m4.5 7 7.5 6 7.5-6"></path>
+                </svg>
+                <div class="client-info-row__text">
+                    <small>Correo electrónico</small>
+                    <strong>{{ cliente.email }}</strong>
+                </div>
+            </li>
+            {% endif %}
+
+            {% if cliente.notas %}
+            <li class="client-info-row">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4.5" y="3.5" width="15" height="17" rx="2.5"></rect>
+                    <path d="M8 8.5h8M8 12.5h8M8 16.5h5"></path>
+                </svg>
+                <div class="client-info-row__text">
+                    <small>Notas</small>
+                    <strong>{{ cliente.notas }}</strong>
+                </div>
+            </li>
+            {% endif %}
+        </ul>
+    </section>
+
+    <div class="section-header">
+        <h2 class="section-title">Historial de compras</h2>
+        {% if historial | length > 3 %}
+        <button type="button" class="section-header__action" id="toggle-purchases" data-expanded="false">
+            Ver todas
+        </button>
+        {% endif %}
+    </div>
+
+    <ul class="list">
+        {% for h in historial %}
+        <li>
+            <div class="list-row purchase-card"{% if loop.index > 3 %} data-extra hidden{% endif %}>
+                <span class="list-row__avatar">
+                    <img src="/static/images/lazosencillo.png" alt="">
+                </span>
+                <span class="list-row__body">
+                    <strong>{{ h.producto }}</strong>
+                    <small>{{ h.fecha }}</small>
+                </span>
+                <span class="list-row__meta">
+                    <strong>${{ "{:,}".format(h.monto) }}</strong>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </div>
+        </li>
+        {% else %}
+        <li class="list-empty">Todavía no hay compras registradas.</li>
+        {% endfor %}
+    </ul>
+
+</section>
+
+<!-- Confirmación de eliminar -->
+<div class="modal" id="delete-confirm-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div
+        class="modal__dialog confirm-modal__dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-confirm-title"
+    >
+        <p id="delete-confirm-title">
+            ¿Estás segura que quieres eliminar a
+            <strong>{{ cliente.nombre }} {{ cliente.apellido }}</strong>?
+        </p>
+
+        <div class="confirm-modal__actions">
+            <button type="button" class="confirm-modal__no" data-modal-close>
+                No
+            </button>
+
+            <form
+                class="confirm-modal__yes-form"
+                method="post"
+                action="/clientes/{{ cliente.id }}/eliminar"
+            >
+                <button type="submit" class="confirm-modal__yes">
+                    Sí, eliminar
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

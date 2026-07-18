@@ -1,0 +1,69 @@
+{% extends "_base.html" %}
+
+{% block title %}Reportes · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    {% set flat_header_back = "/" %}
+    {% set flat_header_back_label = "Regresar al inicio" %}
+    {% set flat_header_title = "Reportes" %}
+    {% include "_flat_header.html" %}
+
+    <!-- Solo interfaz por ahora: los valores se conectan a datos
+         reales del negocio en una siguiente iteración. -->
+    <section class="summary-card" style="margin-top: var(--space-4-fl);">
+        <div class="summary-grid">
+            <div class="summary-item">
+                <img src="/static/images/ventas.svg" alt="">
+                <div class="summary-item__text">
+                    <small>Ventas</small>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <img src="/static/images/dinero.svg" alt="">
+                <div class="summary-item__text">
+                    <small>Ganancias</small>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <img src="/static/images/pedidos.svg" alt="">
+                <div class="summary-item__text">
+                    <small>Pedidos</small>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <img src="/static/images/cobros.svg" alt="">
+                <div class="summary-item__text">
+                    <small>Cobros</small>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <img src="/static/images/productos.svg" alt="">
+                <div class="summary-item__text">
+                    <small>Productos</small>
+                    <strong>—</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <img src="/static/images/cliente.svg" alt="">
+                <div class="summary-item__text">
+                    <small>Clientas</small>
+                    <strong>—</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</section>
+{% endblock %}

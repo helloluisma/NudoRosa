@@ -1,0 +1,34 @@
+<header class="flat-header">
+    <a
+        class="flat-header__button"
+        href="{{ flat_header_back }}"
+        aria-label="{{ flat_header_back_label | default('Volver') }}"
+    >
+        <img src="/static/images/atras.svg" alt="">
+    </a>
+
+    <h1 class="flat-header__title">{{ flat_header_title }}</h1>
+
+    <div class="flat-header__actions">
+        {% for action in flat_header_actions | default([]) %}
+        {% if action.type == "button" %}
+        <button
+            type="button"
+            class="flat-header__button"
+            id="{{ action.id }}"
+            aria-label="{{ action.label }}"
+        >
+            <img src="{{ action.icon }}" alt="">
+        </button>
+        {% else %}
+        <a
+            class="flat-header__button"
+            href="{{ action.href }}"
+            aria-label="{{ action.label }}"
+        >
+            <img src="{{ action.icon }}" alt="">
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+</header>

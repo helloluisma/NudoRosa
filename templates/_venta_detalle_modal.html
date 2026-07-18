@@ -1,0 +1,140 @@
+{% import "_venta_macros.html" as venta_macros %}
+
+<!-- Detalle de una venta: se abre desde una tarjeta de Pedidos o de
+     Cobros. Ambas pantallas comparten este mismo componente — no
+     duplicar su HTML ni su lógica de acciones. -->
+<div class="modal modal--sheet" id="venta-detalle-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="venta-detalle-numero">
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+
+        <div class="pedido-detalle__header">
+            <div>
+                <p class="pedido-detalle__numero" id="venta-detalle-numero">Venta #—</p>
+                <p class="pedido-detalle__fecha" id="venta-detalle-fecha"></p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+                <span class="pill" id="venta-detalle-entrega-pill"></span>
+                <span class="pill" id="venta-detalle-pago-pill"></span>
+            </div>
+        </div>
+
+        <div class="inventory-sheet-form">
+            <div class="list-row" style="margin-bottom: var(--space-3-fl);">
+                <span class="list-row__avatar" id="venta-detalle-cliente-avatar"></span>
+                <span class="list-row__body">
+                    <strong id="venta-detalle-cliente-nombre"></strong>
+                    <small id="venta-detalle-cliente-telefono"></small>
+                </span>
+            </div>
+
+            <div class="inventory-modal__product">
+                <span class="inventory-modal__product-image" id="venta-detalle-producto-imagen"></span>
+                <div class="inventory-modal__product-text">
+                    <strong id="venta-detalle-producto-nombre"></strong>
+                    <small id="venta-detalle-producto-color"></small>
+                </div>
+            </div>
+
+            <div class="pedido-resumen" style="margin-top: var(--space-3-fl);">
+                <div class="pedido-resumen__row">
+                    <small>Precio unitario</small>
+                    <strong id="venta-detalle-precio-unitario"></strong>
+                </div>
+                <div class="pedido-resumen__row">
+                    <small>Cantidad</small>
+                    <strong id="venta-detalle-cantidad-texto"></strong>
+                </div>
+                <div class="pedido-resumen__row pedido-resumen__row--total">
+                    <small>Total</small>
+                    <strong id="venta-detalle-total"></strong>
+                </div>
+                <div class="pedido-resumen__row" id="venta-detalle-vencimiento-row" hidden>
+                    <small>Fecha límite de pago</small>
+                    <strong id="venta-detalle-vencimiento"></strong>
+                </div>
+                <div class="pedido-resumen__row" id="venta-detalle-entrega-fecha-row" hidden>
+                    <small>Fecha de entrega</small>
+                    <strong id="venta-detalle-entrega-fecha"></strong>
+                </div>
+                <div class="pedido-resumen__row" id="venta-detalle-pago-fecha-row" hidden>
+                    <small>Fecha de pago</small>
+                    <strong id="venta-detalle-pago-fecha"></strong>
+                </div>
+            </div>
+
+            <div class="client-form__field" id="venta-detalle-notas-wrap" style="margin-top: var(--space-3-fl);" hidden>
+                <label>Notas</label>
+                <p id="venta-detalle-notas" style="margin: 0; color: var(--vino); font-weight: 600; font-size: 0.88rem;"></p>
+            </div>
+
+            <div id="venta-detalle-editable-wrap">
+                <h2 class="client-form__section-title" style="margin-top: var(--space-5-fl);">Editar venta</h2>
+
+                <div class="client-form__field">
+                    <label>Color</label>
+                    {{ venta_macros.color_grid(colores, "ventaedit") }}
+                </div>
+
+                <div class="client-form__field" style="margin-top: var(--space-3-fl);">
+                    <label>Cantidad</label>
+                    {{ venta_macros.qty_stepper("ventaedit") }}
+                    <p class="inventory-modal__error" id="ventaedit-cantidad-error" hidden></p>
+                </div>
+
+                <div class="client-form__field" style="margin-top: var(--space-3-fl);">
+                    <label for="venta-detalle-notas-input">Notas (opcional)</label>
+                    <textarea class="client-form__textarea" id="venta-detalle-notas-input" rows="3" placeholder="Alguna indicación especial..."></textarea>
+                </div>
+
+                <p class="inventory-modal__error" id="venta-detalle-editar-error" hidden></p>
+
+                <button type="button" class="client-form__submit" id="venta-detalle-guardar-btn" style="margin-top: var(--space-3-fl);">
+                    <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                    <span>Guardar cambios</span>
+                </button>
+            </div>
+
+            <button type="button" class="client-form__submit" id="venta-detalle-avanzar-btn" style="margin-top: var(--space-3-fl);" hidden>
+                <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                <span id="venta-detalle-avanzar-texto">Marcar como…</span>
+            </button>
+
+            <button type="button" class="client-form__submit" id="venta-detalle-pagar-btn" style="margin-top: var(--space-3-fl);" hidden>
+                <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                <span>Marcar como pagado</span>
+            </button>
+
+            <button type="button" class="pedido-detalle__cancelar" id="venta-detalle-cancelar-btn" hidden>
+                Cancelar venta
+            </button>
+
+            <button type="button" class="confirm-modal__no" style="width: 100%; margin-top: var(--space-3-fl);" data-modal-close>
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmar cancelación de venta -->
+<div class="modal" id="venta-cancelar-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div
+        class="modal__dialog confirm-modal__dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="cancelar-venta-title"
+    >
+        <p id="cancelar-venta-title">
+            ¿Cancelar la <strong id="cancelar-venta-numero">venta</strong>?
+            La cantidad reservada vuelve al inventario.
+        </p>
+
+        <div class="confirm-modal__actions">
+            <button type="button" class="confirm-modal__no" data-modal-close>No</button>
+            <button type="button" class="confirm-modal__yes" id="venta-confirmar-cancelar-btn">Sí, cancelar</button>
+        </div>
+    </div>
+</div>

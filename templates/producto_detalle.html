@@ -1,0 +1,62 @@
+{% extends "_base.html" %}
+
+{% block title %}{{ producto.nombre }} · Nudo Rosa{% endblock %}
+
+{% block content %}
+{% set page_title = "Detalle del producto" %}
+{% set back_href = "/productos" %}
+{% include "_page_header.html" %}
+
+<div class="bow-card__image">
+    {% if producto.imagen %}
+    <img src="{{ producto.imagen }}" alt="{{ producto.nombre }}">
+    {% else %}
+    <span aria-hidden="true">🎀</span>
+    {% endif %}
+</div>
+
+<section class="summary-card">
+    <div class="summary-card__header">
+        <h3>{{ producto.nombre }}</h3>
+        <span class="pill {{ estado.pill_class }}">
+            {{ estado.etiqueta }}
+        </span>
+    </div>
+
+    <div class="summary-grid summary-grid--2">
+        <div class="summary-item">
+            <span class="summary-item__icon" aria-hidden="true">💰</span>
+            <div class="summary-item__text">
+                <small>Precio</small>
+                <strong>${{ "{:,}".format(producto.precio_publico) }}</strong>
+            </div>
+        </div>
+
+        <div class="summary-item">
+            <span class="summary-item__icon" aria-hidden="true">📦</span>
+            <div class="summary-item__text">
+                <small>Stock</small>
+                <strong>{{ producto.stock }} u.</strong>
+            </div>
+        </div>
+    </div>
+</section>
+
+<h2 class="section-title">Ventas recientes</h2>
+
+<ul class="list">
+    {% for v in ventas_recientes %}
+    <li>
+        <div class="list-row">
+            <span class="list-row__avatar">{{ v.cliente[0] }}</span>
+            <span class="list-row__body">
+                <strong>{{ v.cliente }}</strong>
+                <small>{{ v.fecha }}</small>
+            </span>
+        </div>
+    </li>
+    {% else %}
+    <li class="list-empty">Todavía no se vendió este diseño.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

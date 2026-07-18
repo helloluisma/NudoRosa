@@ -1,0 +1,44 @@
+{% extends "_base.html" %}
+
+{% block title %}Ayuda · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    {% set flat_header_back = "/" %}
+    {% set flat_header_back_label = "Regresar al inicio" %}
+    {% set flat_header_title = "Ayuda" %}
+    {% include "_flat_header.html" %}
+
+    <!-- Respuestas breves por ahora: la documentación completa se
+         desarrolla en una siguiente iteración. -->
+    <div class="faq-list" style="margin-top: var(--space-4-fl);">
+        <details class="faq-item">
+            <summary>¿Cómo registrar una venta?</summary>
+            <p>Toca el botón "+" en Ventas, en Pedidos, o el botón central de la barra inferior. Sigue los pasos: clienta, producto, color, cantidad, entrega y pago.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>¿Cómo registrar una clienta?</summary>
+            <p>Desde Clientas toca "+", o hazlo directamente durante el registro de una venta con "Registrar nueva clienta".</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>¿Cómo crear un pedido?</summary>
+            <p>Un pedido es una venta con entrega pendiente. Se crea igual que cualquier venta, eligiendo "Pendiente de entrega" en ese paso.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>¿Cómo ajustar inventario?</summary>
+            <p>Entra a Inventario, toca un producto y usa "Ajustar stock" para sumar unidades o actualizar costo y precio.</p>
+        </details>
+
+        <details class="faq-item">
+            <summary>¿Cómo registrar un pago?</summary>
+            <p>Abre la venta desde Pedidos o Cobros y toca "Marcar como pagado".</p>
+        </details>
+    </div>
+
+</section>
+{% endblock %}

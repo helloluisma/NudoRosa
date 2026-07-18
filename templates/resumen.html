@@ -1,0 +1,51 @@
+{% extends "_base.html" %}
+
+{% block title %}Resumen · Nudo Rosa{% endblock %}
+
+{% block content %}
+{% set page_title = "Resumen" %}
+{% set page_subtitle = "Cómo te fue esta semana" %}
+{% set back_href = "/" %}
+{% include "_page_header.html" %}
+
+<div class="bar-chart">
+    {% for d in semana %}
+    <div class="bar-chart__col{% if d.dia == 'Hoy' %} bar-chart__col--today{% endif %}">
+        <div class="bar-chart__bar" style="height: {{ (d.monto / max_monto * 100) | round(1) }}%;"></div>
+        <span class="bar-chart__label">{{ d.dia }}</span>
+    </div>
+    {% endfor %}
+</div>
+
+<section class="summary-card">
+    <div class="summary-card__header">
+        <h3>Resumen del día</h3>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-item">
+            <img src="/static/images/carrito.svg" alt="Ventas">
+            <div class="summary-item__text">
+                <small>Ventas</small>
+                <strong>${{ "{:,}".format(resumen.ingresos_hoy) }}</strong>
+            </div>
+        </div>
+
+        <div class="summary-item">
+            <img src="/static/images/caja.svg" alt="Pedidos">
+            <div class="summary-item__text">
+                <small>Pedidos</small>
+                <strong>{{ resumen.ventas_completadas_hoy }}</strong>
+            </div>
+        </div>
+
+        <div class="summary-item">
+            <img src="/static/images/dinero.svg" alt="Ganancias">
+            <div class="summary-item__text">
+                <small>Ganancias</small>
+                <strong>${{ "{:,}".format(resumen.ganancia_hoy) }}</strong>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

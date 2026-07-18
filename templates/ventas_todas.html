@@ -1,0 +1,50 @@
+{% extends "_base.html" %}
+
+{% block title %}Todas las ventas · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    <!-- Encabezado -->
+    {% set flat_header_back = "/ventas" %}
+    {% set flat_header_back_label = "Regresar a Ventas" %}
+    {% set flat_header_title = "Todas las ventas" %}
+    {% set flat_header_actions = [
+        {"type": "button", "id": "new-sale-button", "icon": "/static/images/+.svg", "label": "Registrar una venta"}
+    ] %}
+    {% include "_flat_header.html" %}
+
+    <!-- Buscador -->
+    <div class="sales-search">
+        <span class="sales-search__icon" aria-hidden="true">🔍</span>
+
+        <input
+            type="search"
+            class="sales-search__input"
+            id="sales-search-input"
+            placeholder="Buscar por clienta o producto"
+            autocomplete="off"
+        >
+    </div>
+
+    <!-- Lista completa -->
+    <section class="latest-sales">
+        <ul class="latest-sales__list" id="all-sales-list">
+            {% for v in ventas %}
+            {% include "_venta_item.html" %}
+            {% endfor %}
+        </ul>
+
+        <p class="sales-search__empty" id="sales-search-empty" hidden>
+            No encontramos ventas que coincidan con tu búsqueda.
+        </p>
+    </section>
+
+</section>
+
+{% set venta_modal_volver_a = "ventas" %}
+{% include "_nueva_venta_modal.html" %}
+
+<div class="toast" id="venta-toast" role="status" aria-live="polite" hidden></div>
+{% endblock %}

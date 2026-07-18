@@ -1,0 +1,24 @@
+{% macro color_grid(colores, prefix) %}
+<div class="color-select__grid" id="{{ prefix }}-color-grid">
+    {% for c in colores %}
+    <button
+        type="button"
+        class="color-select__item"
+        data-color="{{ c.nombre }}"
+        data-hex="{{ c.hex }}"
+    >
+        <span class="color-select__swatch" style="background: {{ c.hex }};"></span>
+        <span class="color-select__name">{{ c.nombre }}</span>
+    </button>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro qty_stepper(prefix) %}
+<div class="qty-stepper">
+    <button type="button" class="qty-stepper__btn" id="{{ prefix }}-qty-minus" aria-label="Restar">−</button>
+    <span class="qty-stepper__value" id="{{ prefix }}-qty-value">1</span>
+    <button type="button" class="qty-stepper__btn" id="{{ prefix }}-qty-plus" aria-label="Sumar">+</button>
+</div>
+<p class="qty-stepper__stock" id="{{ prefix }}-qty-stock">Stock disponible: 0</p>
+{% endmacro %}

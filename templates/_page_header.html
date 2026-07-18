@@ -1,0 +1,52 @@
+<header class="page-header {% if header_img %}page-header--has-img{% endif %}">
+    <div class="page-header__background" aria-hidden="true"></div>
+
+    <!-- 🌟 NUEVO: Si hay una imagen, la renderiza de fondo responsivo -->
+    {% if header_img %}
+    <img 
+        class="page-header__img" 
+        src="{{ header_img }}" 
+        alt="{{ page_title | default('') }}"
+    >
+    {% endif %}
+
+    <div class="page-header__top">
+        <a
+            class="page-header__button"
+            href="{{ back_href | default('/') }}"
+            aria-label="Volver"
+        >
+            <img
+                src="/static/images/atras.svg"
+                alt=""
+                aria-hidden="true"
+            >
+        </a>
+
+        <!-- 🌟 MODIFICADO: El título solo aparece si NO hay imagen, ya que la imagen ya lo trae dibujado -->
+        {% if not header_img %}
+        <h1 class="page-header__title">
+            {{ page_title }}
+        </h1>
+        {% endif %}
+
+        {% if add_href %}
+        <a
+            class="page-header__button"
+            href="{{ add_href }}"
+            aria-label="{{ add_label | default('Agregar') }}"
+        >
+            <img
+                src="/static/images/+.svg"
+                alt=""
+                aria-hidden="true"
+            >
+        </a>
+        {% else %}
+        <!-- Si hay imagen, este espacio vacío nos ayuda a mantener el equilibrio flexbox -->
+        <span class="page-header__button page-header__button--empty"></span>
+        {% endif %}
+    </div>
+
+    {% block page_header_extra %}{% endblock %}
+</header>

@@ -1,0 +1,239 @@
+{% extends "_base.html" %}
+
+{% block title %}{{ "Editar" if cliente else "Registrar" }} clienta · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<!-- Fondo encabezado1.svg (registrar) / encabezado2.svg (editar):
+     el título y la ilustración ya vienen dibujados en la imagen. -->
+<header class="client-form-hero{% if cliente %} client-form-hero--edit{% endif %}">
+    <a
+        class="client-form-hero__back"
+        href="{{ '/clientes/%d' % cliente.id if cliente else ('/%s' % volver_a if volver_a in ('pedidos', 'ventas') else '/clientes') }}"
+        aria-label="Volver"
+    >
+        <img src="/static/images/atras.svg" alt="">
+    </a>
+
+    <div class="client-form-hero__decorations" aria-hidden="true">
+        <span class="client-form-hero__heart client-form-hero__heart--1">♥</span>
+        <span class="client-form-hero__heart client-form-hero__heart--2">♥</span>
+        <span class="client-form-hero__spark client-form-hero__spark--1">✦</span>
+        <span class="client-form-hero__spark client-form-hero__spark--2">✦</span>
+    </div>
+</header>
+
+{% set avatares_sugeridos = avatares_disponibles[:4] %}
+{% set avatar_actual = cliente.avatar if cliente else "" %}
+{% set avatar_sugerido = avatar_actual in avatares_sugeridos %}
+
+<form
+    class="client-form"
+    method="post"
+    action="{{ '/clientes/%d/editar' % cliente.id if cliente else '/clientes/nueva' }}"
+>
+    <input type="hidden" name="volver_a" value="{{ volver_a | default('') }}">
+    <section class="client-form__section">
+        <h2 class="client-form__section-title">Selecciona un avatar</h2>
+
+        <div class="avatar-select__grid" id="avatar-select-grid">
+            {% for avatar_url in avatares_sugeridos %}
+            <button
+                type="button"
+                class="avatar-select__item{% if avatar_url == avatar_actual %} is-selected{% endif %}"
+                data-avatar-url="{{ avatar_url }}"
+                aria-label="Avatar {{ loop.index }}"
+            >
+                <img src="{{ avatar_url }}" alt="">
+                <span class="avatar-select__check" aria-hidden="true">✔</span>
+            </button>
+            {% endfor %}
+
+            <button
+                type="button"
+                class="avatar-select__item avatar-select__item--more{% if avatar_actual and not avatar_sugerido %} is-selected{% endif %}"
+                id="avatar-select-more"
+                aria-label="Ver más avatares"
+            >
+                <img
+                    id="avatar-select-more-img"
+                    src="{{ avatar_actual if not avatar_sugerido else '' }}"
+                    alt=""
+                    {% if avatar_sugerido or not avatar_actual %}hidden{% endif %}
+                >
+                <span class="avatar-select__plus" id="avatar-select-plus" aria-hidden="true"{% if avatar_actual and not avatar_sugerido %} hidden{% endif %}>+</span>
+                <span class="avatar-select__check" aria-hidden="true">✔</span>
+            </button>
+        </div>
+
+        <input type="hidden" name="avatar" id="avatar-input" value="{{ avatar_actual }}">
+    </section>
+
+    <section class="client-form__fields">
+        <div class="client-form__row">
+            <div class="client-form__field">
+                <label for="campo-nombre">
+                    Nombre(s) <span class="client-form__required">*</span>
+                </label>
+
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="8" r="3.4"></circle>
+                        <path d="M5.5 19.2c1-3.2 3.8-5 6.5-5s5.5 1.8 6.5 5"></path>
+                    </svg>
+                    <input
+                        type="text"
+                        id="campo-nombre"
+                        name="nombre"
+                        placeholder="Ej. Ivanna"
+                        value="{{ cliente.nombre if cliente else '' }}"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="client-form__field">
+                <label for="campo-apellido">
+                    Apellido(s) <span class="client-form__required">*</span>
+                </label>
+
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="8" r="3.4"></circle>
+                        <path d="M5.5 19.2c1-3.2 3.8-5 6.5-5s5.5 1.8 6.5 5"></path>
+                    </svg>
+                    <input
+                        type="text"
+                        id="campo-apellido"
+                        name="apellido"
+                        placeholder="Ej. Pérez"
+                        value="{{ cliente.apellido if cliente else '' }}"
+                        required
+                    >
+                </div>
+            </div>
+        </div>
+
+        <div class="client-form__field">
+            <label for="campo-telefono">
+                Teléfono <span class="client-form__required">*</span>
+            </label>
+
+            <div class="client-form__input-wrap">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6 3.5h3l1.6 4-2.1 1.7a12.4 12.4 0 0 0 5.6 5.6l1.7-2.1 4 1.6v3a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4 6.7 2 2 0 0 1 6 3.5Z"></path>
+                </svg>
+                <input
+                    type="tel"
+                    id="campo-telefono"
+                    name="telefono"
+                    placeholder="Ej. 0412 123 4567"
+                    value="{{ cliente.telefono if cliente else '' }}"
+                    required
+                >
+            </div>
+        </div>
+
+        <div class="client-form__field">
+            <label for="campo-nacimiento">Fecha de nacimiento</label>
+
+            <div class="client-form__input-wrap">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="4" y="5.5" width="16" height="14" rx="3"></rect>
+                    <path d="M4 10h16M8 3.5v3M16 3.5v3"></path>
+                </svg>
+                <input
+                    type="date"
+                    id="campo-nacimiento"
+                    name="fecha_nacimiento"
+                    value="{{ cliente.fecha_nacimiento if cliente else '' }}"
+                >
+            </div>
+        </div>
+
+        <div class="client-form__field">
+            <label for="campo-direccion">Dirección (opcional)</label>
+
+            <div class="client-form__input-wrap">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 21s-6.5-5.8-6.5-10.8A6.5 6.5 0 0 1 12 3.7a6.5 6.5 0 0 1 6.5 6.5C18.5 15.2 12 21 12 21Z"></path>
+                    <circle cx="12" cy="10.2" r="2.2"></circle>
+                </svg>
+                <input
+                    type="text"
+                    id="campo-direccion"
+                    name="direccion"
+                    placeholder="Ej. Calle Principal, Casa #123"
+                    value="{{ cliente.direccion if cliente else '' }}"
+                >
+            </div>
+        </div>
+
+        <div class="client-form__field">
+            <label for="campo-email">Correo electrónico (opcional)</label>
+
+            <div class="client-form__input-wrap">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3.5" y="5.5" width="17" height="13" rx="2.5"></rect>
+                    <path d="m4.5 7 7.5 6 7.5-6"></path>
+                </svg>
+                <input
+                    type="email"
+                    id="campo-email"
+                    name="email"
+                    placeholder="Ej. ivanna@email.com"
+                    value="{{ cliente.email if cliente else '' }}"
+                >
+            </div>
+        </div>
+    </section>
+
+    <div class="client-form__field">
+        <label for="campo-notas">Notas (opcional)</label>
+
+        <textarea
+            class="client-form__textarea"
+            id="campo-notas"
+            name="notas"
+            rows="4"
+            placeholder="Agrega alguna nota sobre tu clienta..."
+        >{{ cliente.notas if cliente else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="client-form__submit-image">
+        <img
+            src="/static/images/{{ 'guardarcambios.svg' if cliente else 'guardarclienta.svg' }}"
+            alt="{{ 'Guardar cambios' if cliente else 'Guardar cliente' }}"
+        >
+    </button>
+</form>
+
+<!-- Selector de avatar: hoja inferior con todos los avatares disponibles -->
+<div class="modal modal--sheet" id="avatar-picker-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div
+        class="avatar-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="avatar-modal-title"
+    >
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+        <p class="avatar-sheet__title" id="avatar-modal-title">Selecciona un avatar</p>
+
+        <div class="avatar-sheet__grid">
+            {% for avatar_url in avatares_disponibles %}
+            <button
+                type="button"
+                class="avatar-sheet__option{% if avatar_url == avatar_actual %} is-selected{% endif %}"
+                data-avatar-url="{{ avatar_url }}"
+                aria-label="Avatar {{ loop.index }}"
+            >
+                <img src="{{ avatar_url }}" alt="">
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

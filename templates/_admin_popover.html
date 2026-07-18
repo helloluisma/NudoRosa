@@ -1,0 +1,60 @@
+<!-- Centro de Administración: popover flotante del botón "Más".
+     Preparado para crecer — hoy solo existe la página "principal",
+     pero cualquier función futura menos frecuente (exportar,
+     importar, mi negocio, personalización, acerca de) se agrega
+     como una nueva .admin-popover__page con su propio
+     data-popover-page, reutilizando esta misma tarjeta/animación
+     sin rediseñar el componente. -->
+<div
+    class="popover admin-popover"
+    data-popover="admin"
+    role="menu"
+    aria-label="Centro de administración"
+    hidden
+>
+    <span class="admin-popover__arrow" aria-hidden="true"></span>
+
+    <div class="admin-popover__page is-active" data-popover-page="principal">
+        <div class="admin-popover__grid">
+            <a class="admin-card" href="/clientes" role="menuitem">
+                <span class="admin-card__icon" aria-hidden="true">👧🏻</span>
+                <strong>Clientas</strong>
+                <small>Administra tus clientas</small>
+            </a>
+
+            <a class="admin-card" href="/inventario" role="menuitem">
+                {% set badge = contar_poco_stock() %}
+                {% if badge %}<span class="admin-card__badge">{{ badge }}</span>{% endif %}
+                <span class="admin-card__icon" aria-hidden="true">🎀</span>
+                <strong>Inventario</strong>
+                <small>Controla tu stock</small>
+            </a>
+
+            <a class="admin-card" href="/cobros" role="menuitem">
+                {% set badge = contar_cobros_pendientes() %}
+                {% if badge %}<span class="admin-card__badge">{{ badge }}</span>{% endif %}
+                <span class="admin-card__icon" aria-hidden="true">💰</span>
+                <strong>Cobros</strong>
+                <small>Pagos pendientes</small>
+            </a>
+
+            <a class="admin-card" href="/reportes" role="menuitem">
+                <span class="admin-card__icon" aria-hidden="true">📊</span>
+                <strong>Reportes</strong>
+                <small>Resumen del negocio</small>
+            </a>
+
+            <a class="admin-card" href="/configuracion" role="menuitem">
+                <span class="admin-card__icon" aria-hidden="true">⚙️</span>
+                <strong>Configuración</strong>
+                <small>Ajusta tu negocio</small>
+            </a>
+
+            <a class="admin-card" href="/ayuda" role="menuitem">
+                <span class="admin-card__icon" aria-hidden="true">💡</span>
+                <strong>Ayuda</strong>
+                <small>Preguntas frecuentes</small>
+            </a>
+        </div>
+    </div>
+</div>

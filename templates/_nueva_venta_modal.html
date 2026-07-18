@@ -1,0 +1,266 @@
+{% import "_venta_macros.html" as venta_macros %}
+
+<!-- Nueva venta: componente único reutilizado por el botón "+" de
+     Ventas, el botón "+" de Pedidos y el botón central de la barra
+     inferior. No duplicar este modal en ninguna otra pantalla. -->
+<div class="modal modal--sheet" id="nueva-venta-modal" data-volver-a="{{ venta_modal_volver_a | default('ventas') }}" hidden>
+    <div class="modal__backdrop"></div>
+
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="nueva-venta-title">
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+        <p class="avatar-sheet__title" id="nueva-venta-title">Nueva venta</p>
+
+        <div class="pedido-steps inventory-sheet-form" id="venta-steps">
+
+            <!-- Paso 1: clienta -->
+            <div class="pedido-steps__step is-active" data-step="clienta">
+                <p class="pedido-steps__title" style="margin-bottom: var(--space-3-fl);">Selecciona una clienta</p>
+
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="6.5"></circle>
+                        <path d="m20 20-3.8-3.8"></path>
+                    </svg>
+                    <input type="search" id="venta-buscar-clienta-input" placeholder="Buscar clienta...">
+                </div>
+
+                <div id="venta-clientas-resultados" style="display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-3-fl);">
+                    {% for c in clientes %}
+                    <button
+                        type="button"
+                        class="list-row"
+                        data-client-row
+                        data-client-id="{{ c.id }}"
+                        data-client-nombre="{{ c.nombre }} {{ c.apellido }}"
+                        data-client-avatar="{{ c.avatar }}"
+                        data-client-telefono="{{ c.telefono }}"
+                        data-client-search="{{ (c.nombre ~ ' ' ~ c.apellido ~ ' ' ~ c.telefono) | lower }}"
+                    >
+                        <span class="list-row__avatar">
+                            {% if c.avatar %}
+                            <img src="{{ c.avatar }}" alt="">
+                            {% else %}
+                            {{ c.nombre[0] }}
+                            {% endif %}
+                        </span>
+                        <span class="list-row__body">
+                            <strong>{{ c.nombre }} {{ c.apellido }}</strong>
+                            <small>{{ c.telefono }}</small>
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <p class="client-pick-empty" id="venta-clientas-sin-resultados" hidden>
+                    No encontramos ninguna clienta con ese nombre o teléfono.
+                </p>
+
+                <button type="button" class="client-pick-new" id="venta-registrar-clienta-btn">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    Registrar nueva clienta
+                </button>
+            </div>
+
+            <!-- Paso 2: producto -->
+            <div class="pedido-steps__step" data-step="producto">
+                <div class="pedido-steps__nav">
+                    <button type="button" class="pedido-steps__back" data-go-step="clienta" aria-label="Volver">‹</button>
+                    <p class="pedido-steps__title">Selecciona un producto</p>
+                </div>
+
+                <div class="pedido-steps__selected" id="venta-resumen-clienta-seleccionada"></div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    {% for p in productos %}
+                    <button
+                        type="button"
+                        class="list-row{{ ' is-disabled' if p.stock == 0 else '' }}"
+                        data-product-row
+                        data-product-id="{{ p.id }}"
+                        data-product-nombre="{{ p.nombre }}"
+                        data-product-imagen="{{ p.imagen }}"
+                        data-product-precio="{{ p.precio_publico }}"
+                        data-product-stock="{{ p.stock }}"
+                        {% if p.stock == 0 %}disabled{% endif %}
+                    >
+                        <span class="list-row__avatar list-row__avatar--product">
+                            {% if p.imagen %}
+                            <img src="{{ p.imagen }}" alt="">
+                            {% else %}
+                            <span aria-hidden="true">🎀</span>
+                            {% endif %}
+                        </span>
+                        <span class="list-row__body">
+                            <strong>{{ p.nombre }}</strong>
+                            <small>${{ "{:,}".format(p.precio_publico) }}</small>
+                        </span>
+                        <span class="list-row__meta">
+                            <span class="pill {{ p.estado.pill_class }}">{{ p.estado.etiqueta }}</span>
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Paso 3: color -->
+            <div class="pedido-steps__step" data-step="color">
+                <div class="pedido-steps__nav">
+                    <button type="button" class="pedido-steps__back" data-go-step="producto" aria-label="Volver">‹</button>
+                    <p class="pedido-steps__title">Elige un color</p>
+                </div>
+
+                <div class="pedido-steps__selected" id="venta-resumen-producto-seleccionado"></div>
+
+                {{ venta_macros.color_grid(colores, "venta-new") }}
+            </div>
+
+            <!-- Paso 4: cantidad -->
+            <div class="pedido-steps__step" data-step="cantidad">
+                <div class="pedido-steps__nav">
+                    <button type="button" class="pedido-steps__back" data-go-step="color" aria-label="Volver">‹</button>
+                    <p class="pedido-steps__title">¿Cuántos?</p>
+                </div>
+
+                {{ venta_macros.qty_stepper("venta-new") }}
+
+                <p class="inventory-modal__error" id="venta-new-cantidad-error" hidden></p>
+
+                <button type="button" class="client-form__submit" id="venta-ir-a-entrega-btn" style="margin-top: var(--space-4-fl);">
+                    <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                    <span>Continuar</span>
+                </button>
+            </div>
+
+            <!-- Paso 5: estado de entrega -->
+            <div class="pedido-steps__step" data-step="entrega">
+                <div class="pedido-steps__nav">
+                    <button type="button" class="pedido-steps__back" data-go-step="cantidad" aria-label="Volver">‹</button>
+                    <p class="pedido-steps__title">¿Cómo va la entrega?</p>
+                </div>
+
+                <div class="estado-elegir" id="venta-entrega-opciones">
+                    <button type="button" class="list-row" data-entrega-opcion="pendiente">
+                        <span class="list-row__body">
+                            <strong>Pendiente de entrega</strong>
+                            <small>Se va a entregar más adelante</small>
+                        </span>
+                    </button>
+                    <button type="button" class="list-row" data-entrega-opcion="entregado">
+                        <span class="list-row__body">
+                            <strong>Entregado ahora</strong>
+                            <small>La clienta ya se lleva el pedido</small>
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Paso 6: estado de pago -->
+            <div class="pedido-steps__step" data-step="pago">
+                <div class="pedido-steps__nav">
+                    <button type="button" class="pedido-steps__back" data-go-step="entrega" aria-label="Volver">‹</button>
+                    <p class="pedido-steps__title">¿Cómo va el pago?</p>
+                </div>
+
+                <div class="estado-elegir" id="venta-pago-opciones">
+                    <button type="button" class="list-row" data-pago-opcion="pendiente">
+                        <span class="list-row__body">
+                            <strong>Pendiente de pago</strong>
+                            <small>Queda un cobro por realizar</small>
+                        </span>
+                    </button>
+                    <button type="button" class="list-row" data-pago-opcion="pagado">
+                        <span class="list-row__body">
+                            <strong>Pagado ahora</strong>
+                            <small>La clienta ya realizó el pago</small>
+                        </span>
+                    </button>
+                </div>
+
+                <div class="client-form__field" id="venta-vencimiento-wrap" style="margin-top: var(--space-3-fl);" hidden>
+                    <label for="venta-vencimiento-input">Fecha límite de pago</label>
+                    <div class="client-form__input-wrap">
+                        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="4" y="5.5" width="16" height="14" rx="3"></rect>
+                            <path d="M4 10h16M8 3.5v3M16 3.5v3"></path>
+                        </svg>
+                        <input type="date" id="venta-vencimiento-input">
+                    </div>
+                </div>
+
+                <button type="button" class="client-form__submit" id="venta-ir-a-resumen-btn" style="margin-top: var(--space-4-fl);" hidden>
+                    <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                    <span>Continuar</span>
+                </button>
+            </div>
+
+            <!-- Paso 7: resumen -->
+            <div class="pedido-steps__step" data-step="resumen">
+                <div class="pedido-steps__nav">
+                    <button type="button" class="pedido-steps__back" data-go-step="pago" aria-label="Volver">‹</button>
+                    <p class="pedido-steps__title">Resumen de la venta</p>
+                </div>
+
+                <div class="list-row" style="margin-bottom: var(--space-3-fl);">
+                    <span class="list-row__avatar" id="venta-resumen-cliente-avatar"></span>
+                    <span class="list-row__body">
+                        <strong id="venta-resumen-cliente"></strong>
+                    </span>
+                </div>
+
+                <div class="inventory-modal__product">
+                    <span class="inventory-modal__product-image" id="venta-resumen-producto-imagen"></span>
+                    <div class="inventory-modal__product-text">
+                        <strong id="venta-resumen-producto"></strong>
+                        <small id="venta-resumen-color"></small>
+                    </div>
+                </div>
+
+                <div class="pedido-resumen" style="margin-top: var(--space-3-fl);">
+                    <div class="pedido-resumen__row"><small>Cantidad</small><strong id="venta-resumen-cantidad"></strong></div>
+                    <div class="pedido-resumen__row"><small>Precio unitario</small><strong id="venta-resumen-precio-unitario"></strong></div>
+                    <div class="pedido-resumen__row pedido-resumen__row--total"><small>Total</small><strong id="venta-resumen-total"></strong></div>
+                    <div class="pedido-resumen__row"><small>Entrega</small><strong id="venta-resumen-entrega"></strong></div>
+                    <div class="pedido-resumen__row"><small>Pago</small><strong id="venta-resumen-pago"></strong></div>
+                    <div class="pedido-resumen__row" id="venta-resumen-vencimiento-row" hidden><small>Fecha límite de pago</small><strong id="venta-resumen-vencimiento"></strong></div>
+                </div>
+
+                <div class="client-form__field" style="margin-top: var(--space-4-fl);">
+                    <label for="venta-nueva-notas">Notas (opcional)</label>
+                    <textarea class="client-form__textarea" id="venta-nueva-notas" rows="3" placeholder="Alguna indicación especial..."></textarea>
+                </div>
+
+                <p class="inventory-modal__error" id="venta-nueva-error" hidden></p>
+
+                <div class="inventory-modal__actions">
+                    <button type="button" class="client-form__submit" id="venta-guardar-btn">
+                        <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                        <span>Guardar venta</span>
+                    </button>
+                    <button type="button" class="confirm-modal__no" id="venta-cancelar-nueva-btn">Cancelar</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Descartar venta nueva sin guardar -->
+<div class="modal" id="venta-descartar-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div
+        class="modal__dialog confirm-modal__dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="descartar-venta-title"
+    >
+        <p id="descartar-venta-title">¿Descartar esta venta nueva? Los datos que ingresaste no se van a guardar.</p>
+
+        <div class="confirm-modal__actions">
+            <button type="button" class="confirm-modal__no" data-modal-close>Seguir editando</button>
+            <button type="button" class="confirm-modal__yes" id="venta-confirmar-descartar-btn">Sí, descartar</button>
+        </div>
+    </div>
+</div>

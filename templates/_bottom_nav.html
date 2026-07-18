@@ -1,0 +1,42 @@
+<!-- Fuera de <nav>: .bottom-nav tiene transform (para centrarse),
+     y position:fixed dentro de un ancestro con transform queda
+     "atrapado" en su caja en vez de cubrir toda la pantalla. -->
+<div class="modal__backdrop admin-popover-backdrop" data-popover-backdrop="admin" hidden></div>
+
+<nav class="bottom-nav">
+
+    <a href="/" class="bottom-nav__item active">
+        <img src="/static/images/inicio.svg" alt="">
+        <span>Inicio</span>
+    </a>
+
+    <a href="/productos" class="bottom-nav__item">
+        <img src="/static/images/productos.svg" alt="">
+        <span>Productos</span>
+    </a>
+
+    <button type="button" class="bottom-nav__logo" id="bottom-nav-nueva-venta" aria-label="Registrar una venta">
+        <img src="/static/images/logo.png" alt="Nudo Rosa">
+    </button>
+
+    <a href="/pedidos" class="bottom-nav__item">
+        <img src="/static/images/pedidos.svg" alt="">
+        <span>Pedidos</span>
+    </a>
+
+    <div class="popover-wrap">
+        <button
+            class="bottom-nav__item"
+            type="button"
+            data-popover-trigger="admin"
+            aria-haspopup="true"
+            aria-expanded="false"
+        >
+            <img src="/static/images/mas.svg" alt="">
+            <span>Más</span>
+        </button>
+
+        {% include "_admin_popover.html" %}
+    </div>
+
+</nav>

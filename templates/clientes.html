@@ -1,0 +1,66 @@
+{% extends "_base.html" %}
+
+{% block title %}Clientas · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    <!-- Encabezado -->
+    {% set flat_header_back = "/" %}
+    {% set flat_header_back_label = "Regresar al inicio" %}
+    {% set flat_header_title = "Clientas" %}
+    {% set flat_header_actions = [
+        {"href": "/clientes/nueva", "icon": "/static/images/+.svg", "label": "Registrar clienta"}
+    ] %}
+    {% include "_flat_header.html" %}
+
+    <!-- Buscador -->
+    <div class="client-form__input-wrap">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5"></circle>
+            <path d="m20 20-3.8-3.8"></path>
+        </svg>
+
+        <input
+            type="search"
+            id="client-search-input"
+            placeholder="Buscar por nombre"
+            autocomplete="off"
+        >
+    </div>
+
+    <!-- Lista de clientas -->
+    <ul class="list" id="client-list">
+        {% for c in clientes %}
+        <li class="client-row">
+            <a class="list-row" href="/clientes/{{ c.id }}">
+                <span class="list-row__avatar">
+                    {% if c.avatar %}
+                    <img src="{{ c.avatar }}" alt="">
+                    {% else %}
+                    {{ c.nombre[0] }}
+                    {% endif %}
+                </span>
+
+                <span class="list-row__body">
+                    <strong>{{ c.nombre }} {{ c.apellido }}</strong>
+                    <small>{{ c.pedidos }} pedido{{ "s" if c.pedidos != 1 else "" }}</small>
+                </span>
+
+                {% if c.id == favorita_id %}
+                <span class="list-row__favorite-star" aria-hidden="true" title="Clienta favorita">⭐</span>
+                {% endif %}
+
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <p class="sales-search__empty" id="client-search-empty" hidden>
+        No encontramos clientas que coincidan con tu búsqueda.
+    </p>
+
+</section>
+{% endblock %}

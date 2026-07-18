@@ -1,0 +1,112 @@
+{% extends "_base.html" %}
+
+{% set ocultar_barra_inferior = true %}
+
+{% block title %}Iniciar sesión · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="login-screen">
+
+    <div class="login-hero" id="login-hero">
+        <div class="hero__decorations" aria-hidden="true">
+            <span class="hero__heart hero__heart--1">♥</span>
+            <span class="hero__heart hero__heart--2">♥</span>
+            <span class="hero__heart hero__heart--3">♥</span>
+            <span class="hero__heart hero__heart--4">♥</span>
+
+            <span class="hero__spark hero__spark--1">✦</span>
+            <span class="hero__spark hero__spark--2">✦</span>
+            <span class="hero__spark hero__spark--3">✦</span>
+            <span class="hero__spark hero__spark--4">✦</span>
+            <span class="hero__spark hero__spark--5">✦</span>
+
+            <img class="login-hero__bow login-hero__bow--1" src="/static/images/lazosencillo.png" alt="">
+            <img class="login-hero__bow login-hero__bow--2" src="/static/images/lazosencillo.png" alt="">
+        </div>
+
+        <img class="login-hero__logo" src="/static/images/logo.png" alt="Nudo Rosa">
+
+        <div class="login-hero__character">
+            <div class="hero__glow" aria-hidden="true"></div>
+            <img class="login-hero__ivanna" src="/static/images/ivanna.png" alt="Ivanna">
+        </div>
+
+        <div class="login-bubble">
+            <span class="login-bubble__arrow" aria-hidden="true"></span>
+            <p class="login-bubble__greeting" id="login-bubble-greeting">{{ saludo | join("<br>") | safe }}</p>
+            <p class="login-bubble__phrase" id="login-bubble-phrase">{{ frase }}</p>
+        </div>
+    </div>
+
+    <form class="login-form" id="login-form" data-frase-exito="{{ frase_exito }}">
+        <div class="login-form__fields">
+            <div class="client-form__input-wrap">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="8" r="3.4"></circle>
+                    <path d="M5.5 19.2c1-3.2 3.8-5 6.5-5s5.5 1.8 6.5 5"></path>
+                </svg>
+                <input type="text" id="login-usuario" name="usuario" placeholder="Usuario" autocomplete="username" required>
+            </div>
+
+            <div class="client-form__input-wrap">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="5.5" y="10.5" width="13" height="9" rx="2.5"></rect>
+                    <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"></path>
+                </svg>
+                <input type="password" id="login-password" name="password" placeholder="Contraseña" autocomplete="current-password" required>
+            </div>
+
+            <p class="inventory-modal__error" id="login-error" hidden></p>
+        </div>
+
+        <button type="submit" class="client-form__submit login-form__submit" id="login-submit">
+            <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+            <span>Entrar</span>
+        </button>
+    </form>
+
+    <p class="login-footer">Versión 1.0 · Nudo Rosa by Ivanna</p>
+
+</section>
+
+<script>
+    (function () {
+        const form = document.querySelector("#login-form");
+        const errorEl = document.querySelector("#login-error");
+        const hero = document.querySelector("#login-hero");
+        const greetingEl = document.querySelector("#login-bubble-greeting");
+        const phraseEl = document.querySelector("#login-bubble-phrase");
+        const fraseExito = form.dataset.fraseExito;
+        let errorTimeoutId = null;
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            clearTimeout(errorTimeoutId);
+            errorEl.hidden = true;
+
+            const formData = new FormData(form);
+
+            try {
+                await enviarFormulario("/login", formData);
+
+                greetingEl.textContent = fraseExito;
+                phraseEl.textContent = "";
+                hero.classList.add("is-success");
+
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 1000);
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.hidden = false;
+
+                errorTimeoutId = setTimeout(() => {
+                    errorEl.hidden = true;
+                }, 3200);
+            }
+        });
+    })();
+</script>
+
+{% endblock %}

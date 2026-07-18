@@ -1,0 +1,351 @@
+{% extends "_base.html" %}
+
+{% block title %}Ventas · Nudo Rosa{% endblock %}
+
+{% block content %}
+
+<section class="sales-screen">
+
+    <!-- Encabezado -->
+    {% set flat_header_back = "/" %}
+    {% set flat_header_back_label = "Regresar al inicio" %}
+    {% set flat_header_title = "Ventas" %}
+    {% set flat_header_actions = [
+        {"type": "button", "id": "new-sale-button", "icon": "/static/images/+.svg", "label": "Registrar una venta"}
+    ] %}
+    {% include "_flat_header.html" %}
+
+    <!-- Selector de fecha -->
+<section class="date-range-picker">
+
+    <button
+        class="date-range-picker__trigger"
+        id="open-date-range"
+        type="button"
+        aria-expanded="false"
+        aria-controls="date-range-panel"
+    >
+        <!-- Símbolo izquierdo -->
+        <span
+            class="date-range-picker__icon"
+            aria-hidden="true"
+        >
+            ›
+        </span>
+
+        <!-- Texto del periodo -->
+        <span class="date-range-picker__text">
+            <strong id="date-range-label">
+                {{ rango_texto }}
+            </strong>
+        </span>
+
+        <!-- Flecha para desplegar -->
+        <span
+            class="date-range-picker__arrow"
+            aria-hidden="true"
+        >
+            ↓
+        </span>
+    </button>
+
+    <!-- Panel desplegable del calendario -->
+    <div
+        class="date-range-picker__panel"
+        id="date-range-panel"
+        hidden
+    >
+        <!-- Accesos rápidos -->
+        <div class="date-range-picker__shortcuts">
+            <button type="button" data-range="today">
+                Hoy
+            </button>
+
+            <button type="button" data-range="week">
+                Esta semana
+            </button>
+
+            <button type="button" data-range="month">
+                Este mes
+            </button>
+        </div>
+
+        <!-- Calendario -->
+        <div class="calendar-range">
+
+            <div class="calendar-range__header">
+                <button
+                    type="button"
+                    class="calendar-range__nav"
+                    id="calendar-prev"
+                    aria-label="Mes anterior"
+                >
+                    ‹
+                </button>
+
+                <strong id="calendar-month-label"></strong>
+
+                <button
+                    type="button"
+                    class="calendar-range__nav"
+                    id="calendar-next"
+                    aria-label="Mes siguiente"
+                >
+                    ›
+                </button>
+            </div>
+
+            <div class="calendar-range__weekdays">
+                <span>Lun</span>
+                <span>Mar</span>
+                <span>Mié</span>
+                <span>Jue</span>
+                <span>Vie</span>
+                <span>Sáb</span>
+                <span>Dom</span>
+            </div>
+
+            <div
+                class="calendar-range__days"
+                id="calendar-days"
+            ></div>
+
+        </div>
+
+        <!-- Resumen del rango elegido -->
+        <div class="date-range-picker__summary">
+
+            <div>
+                <small>Desde</small>
+
+                <strong id="range-start-label">
+                    Sin elegir
+                </strong>
+            </div>
+
+            <span aria-hidden="true">→</span>
+
+            <div>
+                <small>Hasta</small>
+
+                <strong id="range-end-label">
+                    Sin elegir
+                </strong>
+            </div>
+
+        </div>
+
+        <!-- Formulario de fechas -->
+        <form
+            class="date-range-picker__actions"
+            method="get"
+            action="/ventas"
+            id="sales-range-form"
+        >
+            <input
+                type="hidden"
+                name="fecha_inicio"
+                id="fecha-inicio"
+                value="{{ fecha_inicio }}"
+            >
+
+            <input
+                type="hidden"
+                name="fecha_fin"
+                id="fecha-fin"
+                value="{{ fecha_fin }}"
+            >
+
+            <button
+                type="button"
+                class="date-range-picker__cancel"
+                id="cancel-date-range"
+            >
+                Cancelar
+            </button>
+
+            <button
+                type="submit"
+                class="date-range-picker__apply"
+                id="apply-date-range"
+                disabled
+            >
+                Ver ventas
+            </button>
+        </form>
+
+    </div>
+
+</section>
+
+<!-- Tarjeta principal de estadísticas -->
+<section class="sales-overview-card">
+
+    <div class="sales-overview-card__total">
+        <span>Ventas completadas</span>
+
+        <strong>
+            ${{ "{:,}".format(total_ventas) }}
+        </strong>
+
+        <small>
+            {{ ventas | length }}
+            {% if ventas | length == 1 %}
+                venta
+            {% else %}
+                ventas
+            {% endif %}
+            · Ganancia ${{ "{:,}".format(ganancia_total) }}
+        </small>
+
+        {% if transacciones_activas %}
+        <small class="sales-overview-card__activas">
+            {{ transacciones_activas }}
+            {% if transacciones_activas == 1 %}
+                transacción activa
+            {% else %}
+                transacciones activas
+            {% endif %}
+        </small>
+        {% endif %}
+    </div>
+
+    <!-- Gráfica -->
+    <div class="sales-line-chart">
+
+        <div class="sales-line-chart__axis">
+            <span>6k</span>
+            <span>4k</span>
+            <span>2k</span>
+            <span>0</span>
+        </div>
+
+        <div class="sales-line-chart__content">
+
+            <div class="sales-line-chart__grid">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+
+            <svg
+                class="sales-line-chart__svg"
+                viewBox="0 0 320 145"
+                preserveAspectRatio="none"
+                aria-label="Gráfica de ventas"
+                role="img"
+            >
+                <defs>
+                    <linearGradient
+                        id="salesAreaGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                    >
+                        <stop
+                            offset="0%"
+                            stop-color="#f55387"
+                            stop-opacity="0.20"
+                        ></stop>
+
+                        <stop
+                            offset="100%"
+                            stop-color="#f55387"
+                            stop-opacity="0"
+                        ></stop>
+                    </linearGradient>
+                </defs>
+
+                <path
+                    class="sales-line-chart__area"
+                    d="
+                        M 5 126
+                        L 42 119
+                        L 78 92
+                        L 114 78
+                        L 150 46
+                        L 186 69
+                        L 222 78
+                        L 258 34
+                        L 294 74
+                        L 315 57
+                        L 315 145
+                        L 5 145
+                        Z
+                    "
+                ></path>
+
+                <polyline
+                    class="sales-line-chart__line"
+                    points="
+                        5,126
+                        42,119
+                        78,92
+                        114,78
+                        150,46
+                        186,69
+                        222,78
+                        258,34
+                        294,74
+                        315,57
+                    "
+                ></polyline>
+
+                <g class="sales-line-chart__points">
+                    <circle cx="5" cy="126" r="3"></circle>
+                    <circle cx="42" cy="119" r="3"></circle>
+                    <circle cx="78" cy="92" r="3"></circle>
+                    <circle cx="114" cy="78" r="3"></circle>
+                    <circle cx="150" cy="46" r="3"></circle>
+                    <circle cx="186" cy="69" r="3"></circle>
+                    <circle cx="222" cy="78" r="3"></circle>
+                    <circle cx="258" cy="34" r="3"></circle>
+                    <circle cx="294" cy="74" r="3"></circle>
+                    <circle cx="315" cy="57" r="3"></circle>
+                </g>
+            </svg>
+
+            <div class="sales-line-chart__labels">
+                <span>8am</span>
+                <span>12pm</span>
+                <span>4pm</span>
+                <span>8pm</span>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+    <!-- Últimas ventas -->
+    <section class="latest-sales">
+
+        <header class="latest-sales__header">
+            <h2>Últimas ventas</h2>
+
+            <a href="/ventas/todas">
+                Ver todas
+            </a>
+        </header>
+
+        <ul class="latest-sales__list">
+
+            {% for v in ultimas_ventas %}
+            {% include "_venta_item.html" %}
+            {% else %}
+            <li class="list-empty">Aún no hay ventas completadas.</li>
+            {% endfor %}
+
+        </ul>
+    </section>
+
+</section>
+
+{% set venta_modal_volver_a = "ventas" %}
+{% include "_nueva_venta_modal.html" %}
+
+<div class="toast" id="venta-toast" role="status" aria-live="polite" hidden></div>
+{% endblock %}
