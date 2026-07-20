@@ -1,6 +1,7 @@
 {% extends "_base.html" %}
 
 {% block content %}
+{% set tasa_actual = tasa_bcv_valor() %}
 <section class="home-header">
     <div class="hero">
 
@@ -147,7 +148,8 @@
 
                 <div class="summary-item__text">
                     <small>Ventas</small>
-                    <strong>${{ "{:,}".format(resumen.ingresos_hoy) }}</strong>
+                    <strong>{{ formatear_usd(resumen.ingresos_hoy) }}</strong>
+                    {% if tasa_actual %}<small class="summary-item__bs">{{ formatear_bolivares(convertir_usd_a_bolivares(resumen.ingresos_hoy, tasa_actual)) }}</small>{% endif %}
                 </div>
             </div>
 
@@ -165,7 +167,8 @@
 
                 <div class="summary-item__text">
                     <small>Ganancias</small>
-                    <strong>${{ "{:,}".format(resumen.ganancia_hoy) }}</strong>
+                    <strong>{{ formatear_usd(resumen.ganancia_hoy) }}</strong>
+                    {% if tasa_actual %}<small class="summary-item__bs">{{ formatear_bolivares(convertir_usd_a_bolivares(resumen.ganancia_hoy, tasa_actual)) }}</small>{% endif %}
                 </div>
             </div>
 

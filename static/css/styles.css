@@ -618,6 +618,35 @@ img {
     white-space: nowrap;
 }
 
+/* Línea de equivalente en bolívares debajo del monto en dólares — a
+   diferencia del small de arriba (la etiqueta "Ventas"/"Precio"),
+   este va después del strong y no debe leerse como otra etiqueta. */
+.summary-item__text small.summary-item__bs {
+    margin: var(--space-1) 0 0;
+    color: var(--texto-suave);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+/* Tarjeta "Dólar BCV" en Configuración — mismo .summary-card de
+   arriba, solo agrega el monto grande y la línea de fuente. */
+.tasa-bcv__monto {
+    margin: 0 0 var(--space-3-fl);
+    color: var(--texto-suave);
+    font-size: 0.95rem;
+}
+
+.tasa-bcv__monto strong {
+    color: var(--rosa-fuerte);
+    font-size: clamp(1.3rem, 4vw, 1.7rem);
+}
+
+.tasa-bcv__fuente {
+    margin: var(--space-3-fl) 0 0;
+    color: var(--texto-suave);
+    font-size: 0.8rem;
+}
+
 /* =========================================================
    9. BARRA INFERIOR y BOTONES
 ========================================================= */
@@ -1039,6 +1068,19 @@ a.list-row:active {
     color: var(--rosa-fuerte);
     font-size: 0.98rem;
     font-weight: 800;
+}
+
+.list-row__meta small {
+    color: var(--texto-suave);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+/* Ventas de antes de agregar la tasa BCV no tienen equivalente en
+   bolívares (ver models.Pedido) — sin esto, el small vacío deja un
+   hueco de línea entre el monto y la etiqueta de estado. */
+.list-row__meta-bs:empty {
+    display: none;
 }
 
 .list-row__chevron {
@@ -1717,6 +1759,19 @@ button.list-row.is-disabled {
     font-size: 1.2rem;
 }
 
+/* Envuelve strong + small cuando una fila necesita mostrar el
+   equivalente en bolívares debajo del monto en dólares (ver
+   _nueva_venta_modal.html, paso "Resumen de la venta"). */
+.pedido-resumen__valor {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.pedido-resumen__valor small {
+    font-weight: 600;
+}
+
 /* Paso de elegir estado de entrega/pago en Nueva venta: dos
    opciones grandes reutilizando .list-row + .is-selected. */
 .estado-elegir {
@@ -1992,6 +2047,10 @@ button.list-row.is-disabled {
     color: #74666c;
     font-size: 0.66rem;
     font-weight: 700;
+}
+
+#cobros-total-pendiente-bs:empty {
+    display: none;
 }
 
 .sales-overview-card__activas {
@@ -2583,6 +2642,20 @@ button.list-row.is-disabled {
 .client-form__field[hidden] { display: none; }
 .client-form__field label { color: var(--vino); font-size: 0.85rem; font-weight: 800; }
 .client-form__required { color: var(--rosa-fuerte); }
+
+/* Equivalente en bolívares en vivo bajo "Precio al público" (ver
+   initHintBolivaresPrecio en app.js) — mismo criterio que
+   .list-row__meta-bs: sin texto, no ocupa lugar. */
+.client-form__hint-bs {
+    margin-top: calc(-1 * var(--space-1));
+    color: var(--texto-suave);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.client-form__hint-bs:empty {
+    display: none;
+}
 
 .client-form__input-wrap {
     display: flex;

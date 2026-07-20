@@ -17,8 +17,15 @@
             <span>Total pendiente</span>
 
             <strong id="cobros-total-pendiente">
-                ${{ "{:,}".format(total_pendiente) }}
+                {{ formatear_usd(total_pendiente) }}
             </strong>
+
+            {%- set tasa_actual = tasa_bcv_valor() -%}
+            <small id="cobros-total-pendiente-bs">
+                {%- if tasa_actual -%}
+                {{ formatear_bolivares(convertir_usd_a_bolivares(total_pendiente, tasa_actual)) }}
+                {%- endif -%}
+            </small>
 
             <small id="cobros-total-count">
                 {{ cobros | length }}
@@ -49,7 +56,8 @@
                 </span>
 
                 <span class="list-row__meta">
-                    <strong>${{ "{:,}".format(c.total) }}</strong>
+                    <strong>{{ formatear_usd(c.total) }}</strong>
+                    <small class="list-row__meta-bs">{{ c.total_bolivares_formateado or "" }}</small>
                     <span class="pill {{ c.estado_cobro.pill_class }}">
                         {{ c.estado_cobro.etiqueta }}
                     </span>

@@ -14,6 +14,7 @@ tipo ENUM nativo de cada motor.
 
 import enum
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     CheckConstraint,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -113,6 +115,40 @@ class ContadorPedidos(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     siguiente_valor: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class TasaCambio(Base):
+    """
+    Historial de tasas de cambio (hoy solo USD, vía BCV). Nunca se
+    sobreescribe una fila existente: cada actualización —automática o
+    manual— agrega una fila nueva con `activa=True` y desactiva la
+    anterior en la misma transacción (ver
+    services/tasa_cambio.py::_guardar_nueva_tasa). Así queda un
+    historial completo y a la vez una única tasa activa por moneda
+    para los cálculos actuales (`obtener_tasa_activa`).
+
+    Una consulta al BCV que falla NUNCA agrega ni modifica una fila
+    acá — services/tasa_cambio.py simplemente devuelve la tasa activa
+    existente sin tocar la base. `mensaje_error` queda para dejar
+    constancia en la fila cuando una actualización se guarda en un
+    estado degradado (hoy no se usa en el camino feliz).
+    """
+
+    __tablename__ = "tasas_cambio"
+    __table_args__ = (
+        CheckConstraint("tasa_bolivares > 0", name="ck_tasa_cambio_positiva"),
+        Index("ix_tasas_cambio_moneda_activa", "moneda", "activa"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    moneda: Mapped[str] = mapped_column(String(8), default="USD")
+    tasa_bolivares: Mapped[Decimal] = mapped_column(Numeric(18, 8))
+    fuente: Mapped[str] = mapped_column(String(20), default="BCV")
+    fecha_vigencia: Mapped[date] = mapped_column(Date, default=date.today)
+    fecha_actualizacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    actualizada_automaticamente: Mapped[bool] = mapped_column(default=True)
+    mensaje_error: Mapped[str | None] = mapped_column(Text, default=None)
+    activa: Mapped[bool] = mapped_column(default=True)
 
 
 class Clienta(Base):
@@ -221,6 +257,14 @@ class Pedido(Base):
     total: Mapped[int] = mapped_column(Integer, default=0)
     costo_total: Mapped[int] = mapped_column(Integer, default=0)
     ganancia_total: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Snapshot congelado al momento de la venta (ver
+    # services/tasa_cambio.py y services/pedidos.py::crear_pedido):
+    # una tasa BCV futura nunca puede cambiar el total en bolívares de
+    # una venta ya hecha. Nulos en pedidos creados antes de esta
+    # columna — las plantillas no inventan un valor para esos casos.
+    tasa_bcv_aplicada: Mapped[Decimal | None] = mapped_column(Numeric(18, 8), default=None)
+    total_bolivares: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), default=None)
 
     notas: Mapped[str | None] = mapped_column(Text, default=None)
     cancelado_en: Mapped[datetime | None] = mapped_column(DateTime, default=None)

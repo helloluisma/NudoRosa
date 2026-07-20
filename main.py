@@ -5,6 +5,7 @@ import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import quote
 
@@ -25,6 +26,7 @@ from services import pedidos as pedidos_service
 from services import productos as productos_service
 from services import resumen as resumen_service
 from services import seguridad as seguridad_service
+from services import tasa_cambio as tasa_cambio_service
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -213,6 +215,22 @@ def _serializar_producto(producto) -> dict:
     }
 
 
+def _serializar_tasa_bcv(tasa) -> dict | None:
+    if tasa is None:
+        return None
+
+    return {
+        "tasa": float(tasa.tasa_bolivares),
+        "tasa_formateada": tasa_cambio_service.formatear_bolivares(tasa.tasa_bolivares),
+        "fuente": tasa.fuente,
+        "fecha_vigencia": tasa.fecha_vigencia.isoformat(),
+        "fecha_vigencia_texto": _fecha_larga(tasa.fecha_vigencia),
+        "fecha_actualizacion": tasa.fecha_actualizacion.isoformat(),
+        "fecha_actualizacion_texto": _fecha_larga(tasa.fecha_actualizacion.date()),
+        "actualizada_automaticamente": tasa.actualizada_automaticamente,
+    }
+
+
 def _venta_enriquecida(pedido) -> dict | None:
     if pedido is None or not pedido.items:
         return None
@@ -244,6 +262,19 @@ def _venta_enriquecida(pedido) -> dict | None:
         "precio_unitario": item.precio_unitario,
         "subtotal": item.subtotal,
         "total": pedido.total,
+        # Snapshot congelado al momento de esta venta (ver
+        # models.Pedido y services/pedidos.py::crear_pedido) — nunca
+        # se recalcula con la tasa BCV actual, o una venta vieja
+        # cambiaría de total en bolívares cada vez que sube el dólar.
+        # None en ventas creadas antes de esta función: la plantilla
+        # no debe inventar un valor para esos casos.
+        "tasa_bcv_aplicada": float(pedido.tasa_bcv_aplicada) if pedido.tasa_bcv_aplicada is not None else None,
+        "total_bolivares": float(pedido.total_bolivares) if pedido.total_bolivares is not None else None,
+        "total_bolivares_formateado": (
+            tasa_cambio_service.formatear_bolivares(pedido.total_bolivares)
+            if pedido.total_bolivares is not None
+            else None
+        ),
         "estado_entrega": estado_entrega_legacy,
         "estado_pago": estado_pago_legacy,
         "fecha_creacion": pedido.fecha_creacion.isoformat(),
@@ -340,6 +371,8 @@ async def _lifespan(app: FastAPI):
         habia_administrador = seguridad_service.obtener_administrador(db) is not None
         seguridad_service.asegurar_datos_iniciales(db)
         logger.info("Usuario administrador ya existente." if habia_administrador else "Usuario administrador creado.")
+
+        tasa_cambio_service.asegurar_tasa_inicial(db)
     finally:
         db.close()
 
@@ -418,6 +451,17 @@ def _contar_poco_stock_global() -> int:
         db.close()
 
 
+def _tasa_bcv_valor_global() -> float | None:
+    from database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        tasa = tasa_cambio_service.obtener_tasa_activa(db)
+        return float(tasa.tasa_bolivares) if tasa else None
+    finally:
+        db.close()
+
+
 # Expuestos como funciones globales de Jinja para que el popover del
 # Centro de Administración (incluido en _bottom_nav.html en TODAS las
 # pantallas) pueda mostrar sus badges sin tener que agregar estos
@@ -426,6 +470,17 @@ def _contar_poco_stock_global() -> int:
 # la ruta que lo incluye.
 templates.env.globals["contar_cobros_pendientes"] = _contar_cobros_pendientes_global
 templates.env.globals["contar_poco_stock"] = _contar_poco_stock_global
+
+# Misma idea para el equivalente en bolívares de un precio en dólares:
+# cualquier plantilla puede pedir `{% set tasa_actual = tasa_bcv_valor() %}`
+# una vez y reusarla en un loop, sin que cada ruta tenga que acordarse
+# de agregarla a su contexto. convertir_usd_a_bolivares/formatear_usd/
+# formatear_bolivares son las mismas funciones puras que usa
+# services/tasa_cambio.py — una sola fuente de verdad para el formato.
+templates.env.globals["tasa_bcv_valor"] = _tasa_bcv_valor_global
+templates.env.globals["formatear_usd"] = tasa_cambio_service.formatear_usd
+templates.env.globals["formatear_bolivares"] = tasa_cambio_service.formatear_bolivares
+templates.env.globals["convertir_usd_a_bolivares"] = tasa_cambio_service.convertir_usd_a_bolivares
 
 
 # Copy estático de la pantalla legacy /mas (reemplazada por el
@@ -1163,6 +1218,7 @@ async def reportes(request: Request):
 async def configuracion(request: Request, db: Session = Depends(get_db)):
     usuario = seguridad_service.obtener_administrador(db)
     configuracion_actual = seguridad_service.obtener_configuracion(db)
+    tasa_bcv = _serializar_tasa_bcv(tasa_cambio_service.obtener_tasa_activa(db))
 
     return templates.TemplateResponse(
         request=request,
@@ -1174,6 +1230,7 @@ async def configuracion(request: Request, db: Session = Depends(get_db)):
                 "usuario": usuario.nombre_usuario,
             },
             "configuracion": configuracion_actual,
+            "tasa_bcv": tasa_bcv,
         },
     )
 
@@ -1201,6 +1258,36 @@ async def configuracion_seguridad_guardar(
         "nombre_administrador": usuario_actualizado.nombre,
         "usuario": usuario_actualizado.nombre_usuario,
     })
+
+
+@app.post("/configuracion/tasa-bcv/actualizar")
+async def configuracion_tasa_bcv_actualizar(db: Session = Depends(get_db)):
+    # tasa_cambio_service ya nunca deja la ruta sin datos que devolver
+    # (ni con la consulta al BCV ok, ni si falla y hay que mantener la
+    # tasa anterior) — acá solo se traduce el resultado a JSON.
+    resultado = tasa_cambio_service.actualizar_tasa_automatica(db)
+    return JSONResponse(content=resultado)
+
+
+@app.post("/configuracion/tasa-bcv/manual")
+async def configuracion_tasa_bcv_manual(
+    tasa_bolivares: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        tasa_decimal = Decimal(tasa_bolivares.strip().replace(",", "."))
+    except InvalidOperation:
+        return JSONResponse(
+            status_code=422,
+            content={"ok": False, "error": "Ingresá un número válido para la tasa."},
+        )
+
+    try:
+        resultado = tasa_cambio_service.guardar_tasa_manual(db, tasa_decimal)
+    except ErrorNegocio as error:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(error)})
+
+    return JSONResponse(content=resultado)
 
 
 @app.get("/ayuda")

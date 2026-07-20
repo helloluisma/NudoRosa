@@ -7,6 +7,7 @@
 {% set page_subtitle = "Cómo te fue esta semana" %}
 {% set back_href = "/" %}
 {% include "_page_header.html" %}
+{% set tasa_actual = tasa_bcv_valor() %}
 
 <div class="bar-chart">
     {% for d in semana %}
@@ -27,7 +28,8 @@
             <img src="/static/images/carrito.svg" alt="Ventas">
             <div class="summary-item__text">
                 <small>Ventas</small>
-                <strong>${{ "{:,}".format(resumen.ingresos_hoy) }}</strong>
+                <strong>{{ formatear_usd(resumen.ingresos_hoy) }}</strong>
+                {% if tasa_actual %}<small class="summary-item__bs">{{ formatear_bolivares(convertir_usd_a_bolivares(resumen.ingresos_hoy, tasa_actual)) }}</small>{% endif %}
             </div>
         </div>
 
@@ -43,7 +45,8 @@
             <img src="/static/images/dinero.svg" alt="Ganancias">
             <div class="summary-item__text">
                 <small>Ganancias</small>
-                <strong>${{ "{:,}".format(resumen.ganancia_hoy) }}</strong>
+                <strong>{{ formatear_usd(resumen.ganancia_hoy) }}</strong>
+                {% if tasa_actual %}<small class="summary-item__bs">{{ formatear_bolivares(convertir_usd_a_bolivares(resumen.ganancia_hoy, tasa_actual)) }}</small>{% endif %}
             </div>
         </div>
     </div>

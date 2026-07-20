@@ -22,7 +22,7 @@
     </div>
 
     <strong class="latest-sale__amount">
-        ${{ "{:,}".format(v.total) }}
+        {{ formatear_usd(v.total) }}
     </strong>
 
     <span class="latest-sale__status latest-sale__status--delivered">

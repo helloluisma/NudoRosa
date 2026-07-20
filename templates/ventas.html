@@ -179,14 +179,19 @@
 </section>
 
 <!-- Tarjeta principal de estadísticas -->
+{% set tasa_actual = tasa_bcv_valor() %}
 <section class="sales-overview-card">
 
     <div class="sales-overview-card__total">
         <span>Ventas completadas</span>
 
         <strong>
-            ${{ "{:,}".format(total_ventas) }}
+            {{ formatear_usd(total_ventas) }}
         </strong>
+
+        {% if tasa_actual %}
+        <small>{{ formatear_bolivares(convertir_usd_a_bolivares(total_ventas, tasa_actual)) }}</small>
+        {% endif %}
 
         <small>
             {{ ventas | length }}
@@ -195,7 +200,7 @@
             {% else %}
                 ventas
             {% endif %}
-            · Ganancia ${{ "{:,}".format(ganancia_total) }}
+            · Ganancia {{ formatear_usd(ganancia_total) }}
         </small>
 
         {% if transacciones_activas %}

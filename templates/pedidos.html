@@ -46,7 +46,8 @@
                 </span>
 
                 <span class="list-row__meta">
-                    <strong>${{ "{:,}".format(p.total) }}</strong>
+                    <strong>{{ formatear_usd(p.total) }}</strong>
+                    <small class="list-row__meta-bs">{{ p.total_bolivares_formateado or "" }}</small>
                     <span class="pill {{ p.estado_entrega_info.pill_class }}">{{ p.estado_entrega_info.etiqueta }}</span>
                 </span>
 

@@ -6,4 +6,6 @@ itsdangerous
 sqlalchemy
 alembic
 psycopg2-binary
+httpx
+beautifulsoup4
 pytest

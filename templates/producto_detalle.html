@@ -6,6 +6,7 @@
 {% set page_title = "Detalle del producto" %}
 {% set back_href = "/productos" %}
 {% include "_page_header.html" %}
+{% set tasa_actual = tasa_bcv_valor() %}
 
 <div class="bow-card__image">
     {% if producto.imagen %}
@@ -28,7 +29,10 @@
             <span class="summary-item__icon" aria-hidden="true">💰</span>
             <div class="summary-item__text">
                 <small>Precio</small>
-                <strong>${{ "{:,}".format(producto.precio_publico) }}</strong>
+                <strong>{{ formatear_usd(producto.precio_publico) }}</strong>
+                {% if tasa_actual %}
+                <small class="summary-item__bs">{{ formatear_bolivares(convertir_usd_a_bolivares(producto.precio_publico, tasa_actual)) }}</small>
+                {% endif %}
             </div>
         </div>
 

@@ -32,7 +32,7 @@
 
     <link
         rel="stylesheet"
-        href="{{ url_for('static', path='/css/styles.css') }}?v=8"
+        href="{{ url_for('static', path='/css/styles.css') }}?v=10"
     >
 </head>
 
@@ -79,6 +79,11 @@
         </div>
     </div>
 
+    <!-- Tasa BCV vigente — la usan las pantallas que arman o
+         recalculan montos en el cliente sin volver al servidor (ver
+         formatoBolivares/formatoMoneda y sincronizarVentaCreada en
+         app.js). null si todavía no hay ninguna tasa cargada. -->
+    <script>window.TASA_BCV_ACTUAL = {{ tasa_bcv_valor() | tojson }};</script>
     <script src="{{ url_for('static', path='/js/app.js') }}"></script>
 </body>
 </html>

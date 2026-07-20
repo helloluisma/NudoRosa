@@ -28,7 +28,7 @@ from models import (
     ESTADOS_ENTREGA_EDITABLES,
     TipoMovimientoInventario,
 )
-from services import ErrorNegocio, inventario
+from services import ErrorNegocio, inventario, tasa_cambio
 
 
 def _con_relaciones(query):
@@ -172,6 +172,17 @@ def crear_pedido(
         base = fecha_entrega or hoy
         vencimiento = base + timedelta(days=dias_credito)
 
+    # Snapshot congelado al momento de la venta: si más tarde cambia
+    # la tasa BCV, este pedido tiene que seguir mostrando el mismo
+    # total en bolívares con el que se vendió (ver models.Pedido).
+    tasa_activa = tasa_cambio.obtener_tasa_activa(db)
+    tasa_bcv_aplicada = tasa_activa.tasa_bolivares if tasa_activa else None
+    total_bolivares = (
+        tasa_cambio.convertir_usd_a_bolivares(subtotal, tasa_bcv_aplicada)
+        if tasa_bcv_aplicada is not None
+        else None
+    )
+
     pedido = Pedido(
         numero_pedido=generar_numero_pedido(db),
         clienta_id=clienta_id,
@@ -185,6 +196,8 @@ def crear_pedido(
         total=subtotal,
         costo_total=costo_subtotal,
         ganancia_total=subtotal - costo_subtotal,
+        tasa_bcv_aplicada=tasa_bcv_aplicada,
+        total_bolivares=total_bolivares,
         notas=notas or None,
     )
     db.add(pedido)
@@ -306,6 +319,12 @@ def editar_pedido(db: Session, pedido_id: int, color_nombre: str, cantidad: int,
     pedido.costo_total = item.costo_subtotal
     pedido.ganancia_total = item.subtotal - item.costo_subtotal
     pedido.notas = notas or None
+
+    # Reusa la MISMA tasa ya congelada en la venta (nunca la tasa BCV
+    # actual): solo se actualiza el monto en bolívares para que siga
+    # coincidiendo con el nuevo total en dólares.
+    if pedido.tasa_bcv_aplicada is not None:
+        pedido.total_bolivares = tasa_cambio.convertir_usd_a_bolivares(pedido.total, pedido.tasa_bcv_aplicada)
 
     db.commit()
     db.refresh(pedido)

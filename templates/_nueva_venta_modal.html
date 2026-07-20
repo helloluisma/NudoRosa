@@ -1,4 +1,5 @@
 {% import "_venta_macros.html" as venta_macros %}
+{% set tasa_actual = tasa_bcv_valor() %}
 
 <!-- Nueva venta: componente único reutilizado por el botón "+" de
      Ventas, el botón "+" de Pedidos y el botón central de la barra
@@ -94,7 +95,10 @@
                         </span>
                         <span class="list-row__body">
                             <strong>{{ p.nombre }}</strong>
-                            <small>${{ "{:,}".format(p.precio_publico) }}</small>
+                            <small>
+                                {{ formatear_usd(p.precio_publico) }}
+                                {% if tasa_actual %}· {{ formatear_bolivares(convertir_usd_a_bolivares(p.precio_publico, tasa_actual)) }}{% endif %}
+                            </small>
                         </span>
                         <span class="list-row__meta">
                             <span class="pill {{ p.estado.pill_class }}">{{ p.estado.etiqueta }}</span>
@@ -219,8 +223,20 @@
 
                 <div class="pedido-resumen" style="margin-top: var(--space-3-fl);">
                     <div class="pedido-resumen__row"><small>Cantidad</small><strong id="venta-resumen-cantidad"></strong></div>
-                    <div class="pedido-resumen__row"><small>Precio unitario</small><strong id="venta-resumen-precio-unitario"></strong></div>
-                    <div class="pedido-resumen__row pedido-resumen__row--total"><small>Total</small><strong id="venta-resumen-total"></strong></div>
+                    <div class="pedido-resumen__row">
+                        <small>Precio unitario</small>
+                        <span class="pedido-resumen__valor">
+                            <strong id="venta-resumen-precio-unitario"></strong>
+                            <small id="venta-resumen-precio-unitario-bs"></small>
+                        </span>
+                    </div>
+                    <div class="pedido-resumen__row pedido-resumen__row--total">
+                        <small>Total</small>
+                        <span class="pedido-resumen__valor">
+                            <strong id="venta-resumen-total"></strong>
+                            <small id="venta-resumen-total-bs"></small>
+                        </span>
+                    </div>
                     <div class="pedido-resumen__row"><small>Entrega</small><strong id="venta-resumen-entrega"></strong></div>
                     <div class="pedido-resumen__row"><small>Pago</small><strong id="venta-resumen-pago"></strong></div>
                     <div class="pedido-resumen__row" id="venta-resumen-vencimiento-row" hidden><small>Fecha límite de pago</small><strong id="venta-resumen-vencimiento"></strong></div>

@@ -800,6 +800,7 @@ function abrirModalAjuste(tarjeta) {
     document.querySelector("#adjust-cantidad").value = "";
     document.querySelector("#adjust-costo").value = tarjeta.dataset.costo;
     document.querySelector("#adjust-precio").value = tarjeta.dataset.precio;
+    refrescarHintBolivares("adjust-precio", "adjust-precio-bs");
 
     if (productImage) {
         productImage.innerHTML = imagen ? `<img src="${imagen}" alt="">` : ICONO_CAMARA_INVENTARIO;
@@ -964,6 +965,7 @@ function abrirModalEditarProducto(tarjeta) {
     document.querySelector("#edit-product-nombre").value = tarjeta.dataset.nombre;
     document.querySelector("#edit-product-costo").value = tarjeta.dataset.costo;
     document.querySelector("#edit-product-precio").value = tarjeta.dataset.precio;
+    refrescarHintBolivares("edit-product-precio", "edit-product-precio-bs");
     document.querySelector("#edit-product-stock").value = tarjeta.dataset.stock;
 
     preview.innerHTML = imagen ? `<img src="${imagen}" alt="">` : ICONO_CAMARA_INVENTARIO;
@@ -1133,9 +1135,57 @@ const ventaEditState = {
     color: "",
 };
 
+// Mismo formato venezolano (punto de miles, coma decimal) que
+// tasa_cambio.formatear_usd/formatear_bolivares en Python — ver
+// services/tasa_cambio.py. Los montos que ya vienen renderizados por
+// Jinja usan esas funciones; estos dos son para el resto de la app,
+// que arma texto en el cliente sin volver al servidor.
+const OPCIONES_MONEDA_ES = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+
 function formatoMoneda(valor) {
-    return `$${Number(valor).toLocaleString("es")}`;
+    return `$${Number(valor).toLocaleString("es", OPCIONES_MONEDA_ES)}`;
 }
+
+function formatoBolivares(valor) {
+    return `Bs. ${Number(valor).toLocaleString("es", OPCIONES_MONEDA_ES)}`;
+}
+
+/*
+ * Hint "≈ Bs. X" en vivo bajo "Precio al público" (nuevo producto,
+ * editar producto, ajustar inventario) — el precio se sigue
+ * guardando en dólares (ver CLAUDE.md), esto es solo una referencia
+ * para quien está cargando el precio. Se llama tanto al escribir
+ * como al precargar un valor existente desde JS (abrirEditarProducto,
+ * abrirAjusteInventario), por eso es una función aparte y no solo un
+ * listener.
+ */
+function refrescarHintBolivares(inputId, hintId) {
+    const input = document.querySelector(`#${inputId}`);
+    const hint = document.querySelector(`#${hintId}`);
+
+    if (!input || !hint) {
+        return;
+    }
+
+    const valor = Number(input.value);
+    hint.textContent = valor > 0 && window.TASA_BCV_ACTUAL
+        ? formatoBolivares(valor * window.TASA_BCV_ACTUAL)
+        : "";
+}
+
+function initHintsBolivaresPrecio() {
+    [
+        ["new-product-precio", "new-product-precio-bs"],
+        ["edit-product-precio", "edit-product-precio-bs"],
+        ["adjust-precio", "adjust-precio-bs"],
+    ].forEach(([inputId, hintId]) => {
+        document.querySelector(`#${inputId}`)?.addEventListener("input", () => {
+            refrescarHintBolivares(inputId, hintId);
+        });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initHintsBolivaresPrecio);
 
 function irAPasoVenta(paso) {
     document.querySelectorAll("#venta-steps .pedido-steps__step").forEach((paso_) => {
@@ -1311,10 +1361,17 @@ function irAPasoVentaResumen() {
     document.querySelector("#venta-resumen-color").textContent = `${nuevaVentaState.color} · x${nuevaVentaState.cantidad}`;
 
     document.querySelector("#venta-resumen-cantidad").textContent = nuevaVentaState.cantidad;
+
+    const totalUsd = nuevaVentaState.productoPrecio * nuevaVentaState.cantidad;
     document.querySelector("#venta-resumen-precio-unitario").textContent = formatoMoneda(nuevaVentaState.productoPrecio);
-    document.querySelector("#venta-resumen-total").textContent = formatoMoneda(
-        nuevaVentaState.productoPrecio * nuevaVentaState.cantidad
-    );
+    document.querySelector("#venta-resumen-total").textContent = formatoMoneda(totalUsd);
+
+    const precioUnitarioBs = document.querySelector("#venta-resumen-precio-unitario-bs");
+    const totalBs = document.querySelector("#venta-resumen-total-bs");
+    if (window.TASA_BCV_ACTUAL) {
+        precioUnitarioBs.textContent = formatoBolivares(nuevaVentaState.productoPrecio * window.TASA_BCV_ACTUAL);
+        totalBs.textContent = formatoBolivares(totalUsd * window.TASA_BCV_ACTUAL);
+    }
 
     document.querySelector("#venta-resumen-entrega").textContent =
         nuevaVentaState.entregaAhora === "entregado" ? "Entregado ahora" : "Pendiente de entrega";
@@ -1438,6 +1495,7 @@ function crearFilaVenta(venta) {
         </span>
         <span class="list-row__meta">
             <strong></strong>
+            <small class="list-row__meta-bs"></small>
             <span class="pill"></span>
         </span>
         <span class="list-row__chevron" aria-hidden="true">›</span>
@@ -1469,6 +1527,9 @@ function actualizarFilaVenta(li, venta) {
         `#${venta.numero_venta} · ${venta.cliente.nombre} ${venta.cliente.apellido}`;
     tarjeta.querySelector(".list-row__body small").textContent = venta.fecha_creacion_texto;
     tarjeta.querySelector(".list-row__meta strong").textContent = formatoMoneda(venta.total);
+    // Tasa congelada al crear la venta (ver models.Pedido) — nunca la
+    // tasa BCV de hoy, igual que en abrirDetalleVenta().
+    tarjeta.querySelector(".list-row__meta-bs").textContent = venta.total_bolivares_formateado || "";
 
     const pill = tarjeta.querySelector(".list-row__meta .pill");
     pill.className = `pill ${venta.estado_entrega_info.pill_class}`;
@@ -1478,6 +1539,7 @@ function actualizarFilaVenta(li, venta) {
 function actualizarFilaCobro(row, venta) {
     row.querySelector(".list-row__body small").textContent = venta.estado_cobro.texto;
     row.querySelector(".list-row__meta strong").textContent = formatoMoneda(venta.total);
+    row.querySelector(".list-row__meta-bs").textContent = venta.total_bolivares_formateado || "";
 
     const pill = row.querySelector(".list-row__meta .pill");
     pill.className = `pill ${venta.estado_cobro.pill_class}`;
@@ -1557,6 +1619,13 @@ function actualizarResumenCobros() {
 
     totalEl.textContent = formatoMoneda(total);
     countEl.textContent = `${pendientes.length} ${pendientes.length === 1 ? "cobro" : "cobros"}`;
+
+    // "Total pendiente" es un agregado de HOY, a diferencia del total
+    // de una venta puntual — usa la tasa BCV actual, no una congelada.
+    const totalBsEl = document.querySelector("#cobros-total-pendiente-bs");
+    if (totalBsEl && window.TASA_BCV_ACTUAL) {
+        totalBsEl.textContent = formatoBolivares(total * window.TASA_BCV_ACTUAL);
+    }
 }
 
 function sincronizarVentaCreada(venta) {
@@ -1641,6 +1710,10 @@ function abrirDetalleVenta(ventaId) {
     document.querySelector("#venta-detalle-precio-unitario").textContent = formatoMoneda(venta.precio_unitario);
     document.querySelector("#venta-detalle-cantidad-texto").textContent = venta.cantidad;
     document.querySelector("#venta-detalle-total").textContent = formatoMoneda(venta.total);
+    // Tasa congelada al momento de esta venta (venta.total_bolivares_formateado
+    // — ver models.Pedido), nunca la tasa BCV de hoy: una venta vieja no
+    // cambia de total en bolívares porque el dólar subió después.
+    document.querySelector("#venta-detalle-total-bs").textContent = venta.total_bolivares_formateado || "";
 
     const vencimientoRow = document.querySelector("#venta-detalle-vencimiento-row");
     if (venta.estado_pago === "pendiente" && venta.fecha_vencimiento_texto) {
@@ -2097,6 +2170,98 @@ function initSeguridad() {
 }
 
 document.addEventListener("DOMContentLoaded", initSeguridad);
+
+/*
+ * Configuración → Tasa del dólar: consulta el BCV por fetch (nunca
+ * directo desde el navegador — ver services/tasa_cambio.py) y también
+ * permite cargar la tasa a mano si el BCV no responde. Las fechas
+ * llegan en ISO (fecha_vigencia / fecha_actualizacion) y se formatean
+ * acá mismo, sin ida y vuelta al servidor, con el mismo formato
+ * "21 julio 2026" que ya usa _fecha_larga en main.py.
+ */
+const MESES_COMPLETOS_ES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+function formatearFechaLarga(fechaISO) {
+    // Se parte el string en vez de usar new Date(...).getDate(): con
+    // fechas sin hora ("2026-07-21") Date las interpreta en UTC y
+    // getDate() las vuelve a leer en hora local, lo que puede correr
+    // el día mostrado en zonas horarias negativas (como Venezuela).
+    const [anio, mes, dia] = fechaISO.slice(0, 10).split("-").map(Number);
+    return `${String(dia).padStart(2, "0")} ${MESES_COMPLETOS_ES[mes - 1]} ${anio}`;
+}
+
+function actualizarTasaBcvEnPantalla(datos) {
+    if (!datos.tasa) {
+        return;
+    }
+
+    const monto = document.querySelector("#tasa-bcv-monto");
+    const vigencia = document.querySelector("#tasa-bcv-vigencia");
+    const actualizacion = document.querySelector("#tasa-bcv-actualizacion");
+
+    if (monto) {
+        monto.textContent = datos.tasa_formateada;
+    }
+    if (vigencia) {
+        vigencia.textContent = formatearFechaLarga(datos.fecha_vigencia);
+    }
+    if (actualizacion) {
+        actualizacion.textContent = formatearFechaLarga(datos.fecha_actualizacion);
+    }
+}
+
+function initTasaBcv() {
+    const boton = document.querySelector("#tasa-bcv-actualizar-btn");
+    const textoBoton = document.querySelector("#tasa-bcv-actualizar-texto");
+
+    boton?.addEventListener("click", async () => {
+        const textoOriginal = textoBoton.textContent;
+        boton.disabled = true;
+        textoBoton.textContent = "Consultando BCV...";
+
+        try {
+            const datos = await enviarFormulario("/configuracion/tasa-bcv/actualizar", new FormData());
+            actualizarTasaBcvEnPantalla(datos);
+            mostrarToast(datos.mensaje);
+        } catch (err) {
+            mostrarToast(err.message);
+        } finally {
+            boton.disabled = false;
+            textoBoton.textContent = textoOriginal;
+        }
+    });
+
+    const modalManual = document.querySelector("#tasa-bcv-manual-modal");
+
+    document.querySelector("#tasa-bcv-manual-row")?.addEventListener("click", () => {
+        abrirHojaInferior(modalManual);
+    });
+
+    document.querySelector("#tasa-bcv-manual-form")?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const error = document.querySelector("#tasa-bcv-manual-error");
+        error.hidden = true;
+
+        const formData = new FormData(event.target);
+
+        try {
+            const datos = await enviarFormulario("/configuracion/tasa-bcv/manual", formData);
+            actualizarTasaBcvEnPantalla(datos);
+            modalManual.hidden = true;
+            event.target.reset();
+            mostrarToast(datos.mensaje);
+        } catch (err) {
+            error.textContent = err.message;
+            error.hidden = false;
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initTasaBcv);
 
 /*
  * Progressive Web App: registro del Service Worker y tarjeta propia

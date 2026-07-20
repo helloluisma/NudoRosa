@@ -26,6 +26,56 @@
         </li>
     </ul>
 
+    <h2 class="section-title">Tasa del dólar</h2>
+
+    <section class="summary-card" id="tasa-bcv-card">
+        <div class="summary-card__header">
+            <h3>Dólar BCV</h3>
+        </div>
+
+        <p class="tasa-bcv__monto">
+            1 USD = <strong id="tasa-bcv-monto">{{ tasa_bcv.tasa_formateada if tasa_bcv else "Sin tasa configurada" }}</strong>
+        </p>
+
+        <div class="summary-grid summary-grid--2">
+            <div class="summary-item">
+                <span class="summary-item__icon" aria-hidden="true">📅</span>
+                <div class="summary-item__text">
+                    <small>Fecha de vigencia</small>
+                    <strong id="tasa-bcv-vigencia">{{ tasa_bcv.fecha_vigencia_texto if tasa_bcv else "—" }}</strong>
+                </div>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-item__icon" aria-hidden="true">🕓</span>
+                <div class="summary-item__text">
+                    <small>Última actualización</small>
+                    <strong id="tasa-bcv-actualizacion">{{ tasa_bcv.fecha_actualizacion_texto if tasa_bcv else "—" }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <p class="tasa-bcv__fuente">Fuente: Banco Central de Venezuela</p>
+
+        <button type="button" class="client-form__submit" id="tasa-bcv-actualizar-btn" style="margin-top: var(--space-4-fl);">
+            <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+            <span id="tasa-bcv-actualizar-texto">Actualizar tasa BCV</span>
+        </button>
+    </section>
+
+    <ul class="list" style="margin-top: var(--space-3-fl);">
+        <li>
+            <button type="button" class="list-row" id="tasa-bcv-manual-row">
+                <span class="list-row__avatar" aria-hidden="true">✏️</span>
+                <span class="list-row__body">
+                    <strong>Editar tasa manualmente</strong>
+                    <small>Respaldo si el BCV no responde</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </button>
+        </li>
+    </ul>
+
     <h2 class="section-title">General</h2>
 
     <!-- Solo interfaz por ahora: cada fila se conecta a su propia
@@ -197,6 +247,36 @@
             <button type="submit" class="client-form__submit" style="margin-top: var(--space-4-fl);">
                 <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
                 <span>Guardar cambios</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Editar la tasa BCV a mano (respaldo si el sitio del BCV no responde). -->
+<div class="modal modal--sheet" id="tasa-bcv-manual-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="tasa-bcv-manual-title">
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+        <p class="avatar-sheet__title" id="tasa-bcv-manual-title">Editar tasa manualmente</p>
+
+        <form class="inventory-sheet-form" id="tasa-bcv-manual-form">
+            <div class="client-form__field">
+                <label for="tasa-bcv-manual-input">1 USD = Bs.</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="2" x2="12" y2="22"></line>
+                        <path d="M17 6.5H9.8a3 3 0 0 0 0 6h4.4a3 3 0 0 1 0 6H6.5"></path>
+                    </svg>
+                    <input type="number" id="tasa-bcv-manual-input" name="tasa_bolivares" min="0.01" step="0.01" inputmode="decimal" placeholder="Ej. 123.45" required>
+                </div>
+            </div>
+
+            <p class="inventory-modal__error" id="tasa-bcv-manual-error" hidden></p>
+
+            <button type="submit" class="client-form__submit" style="margin-top: var(--space-4-fl);">
+                <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                <span>Guardar tasa</span>
             </button>
         </form>
     </div>
