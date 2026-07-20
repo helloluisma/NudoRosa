@@ -5,4 +5,5 @@ python-multipart
 itsdangerous
 sqlalchemy
 alembic
+psycopg2-binary
 pytest

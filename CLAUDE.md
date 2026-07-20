@@ -233,6 +233,67 @@ Vive en `static/js/app.js`.
 
 ---
 
+# Backend y persistencia de datos
+
+- **Capas:** los modelos ORM viven en `models.py`, la configuración de
+  conexión en `database.py`, y toda la lógica de negocio (crear, editar,
+  listar, calcular) en `services/` — un archivo por dominio
+  (`clientas.py`, `productos.py`, `pedidos.py`, `inventario.py`,
+  `colores.py`, `resumen.py`, `seguridad.py`). Las rutas de `main.py`
+  nunca escriben en el ORM directamente: siempre llaman a la función de
+  `services/` correspondiente, que hace `db.add()` + `db.commit()` +
+  `db.refresh()`. Antes de agregar una función nueva de negocio, revisar
+  si el archivo de `services/` del dominio ya tiene algo parecido.
+- **No existe una tabla "ventas" separada:** una venta completada es un
+  `Pedido` con `estado_entrega=ENTREGADO` y `estado_pago=PAGADO` (ver
+  `services/pedidos.py`). Pedidos, Cobros y Ventas son la misma fila
+  vista con distintos filtros — nunca se duplica el dato en otra tabla.
+- **Motor de base de datos — SQLite en local, PostgreSQL en producción,
+  automático:** `database.py` lee `DATABASE_URL` del entorno. Si existe
+  (Render la entrega al conectar una base PostgreSQL), se usa esa base,
+  normalizando el prefijo viejo `postgres://` a `postgresql://`. Si no
+  existe (desarrollo local), cae a un archivo SQLite (`nudorosa.db` en
+  la raíz, no versionado). Cambiar de motor entre ambientes es una
+  variable de entorno, nunca una rama de código a mano ni un `if`
+  agregado fuera de `database.py`.
+  - **Por qué:** el filesystem de un servicio web en Render es efímero
+    — se reinicia en cada deploy y, en el plan free, cada vez que el
+    servicio despierta de una siesta por inactividad. Un archivo SQLite
+    guardado ahí se borra en cualquiera de esos reinicios (así se
+    perdían productos y clientas después de cerrar sesión). PostgreSQL
+    corre en un servicio aparte con disco persistente propio.
+  - En Render hace falta configurar `DATABASE_URL` (connection string
+    de la base PostgreSQL) y `SECRET_KEY` (ver el punto siguiente) como
+    variables de entorno del servicio web.
+- **`SECRET_KEY` de sesión:** `main.py` lo lee de la variable de entorno
+  `SECRET_KEY`, con un valor aleatorio como respaldo solo para
+  desarrollo local. En producción tiene que ser un valor fijo: si
+  cambia entre arranques del proceso, todas las cookies de sesión
+  firmadas antes quedan inválidas y se fuerza el logout de todo el
+  mundo — en Render eso pasaba en cada deploy o siesta del plan free.
+- **Migraciones con Alembic, no edición manual del esquema:** cualquier
+  cambio a un modelo en `models.py` (columna nueva, tabla nueva, índice)
+  necesita una migración
+  (`alembic revision --autogenerate -m "..."` seguido de
+  `alembic upgrade head`). No alcanza con `Base.metadata.create_all()`
+  para eso — esa llamada (la usa el `lifespan` de `main.py` como red de
+  seguridad) solo crea tablas que todavía no existen, nunca modifica una
+  tabla existente. `alembic/env.py` ya lee `DATABASE_URL` desde
+  `database.py`, así que las migraciones corren contra SQLite o
+  PostgreSQL sin configuración extra.
+- **Enums como texto:** los `Enum` de `models.py` se guardan con
+  `native_enum=False` (columna `VARCHAR`, no el tipo `ENUM` nativo de
+  cada motor) — es más portable entre SQLite y PostgreSQL. No cambiar a
+  `native_enum=True` sin migrar el esquema en ambos motores.
+- **Carga de datos de muestra:** `seed.py` migra los datos de ejemplo de
+  `data.py` (los mismos que se usaron para maquetar la UI) hacia la
+  base real. Es idempotente — se puede correr varias veces sin duplicar
+  nada, cada sección se salta si su tabla ya tiene filas. Se corre a
+  mano (`./.venv/Scripts/python.exe seed.py`), nunca automáticamente al
+  arrancar la app.
+
+---
+
 # Antes de modificar cualquier archivo
 
 1. **Leer este archivo completo.**
@@ -272,9 +333,13 @@ Vive en `static/js/app.js`.
 
 # Referencia rápida
 
-- **Stack:** FastAPI (`main.py`) + Jinja2 (`templates/index.html`) +
-  CSS/JS estático servidos desde `static/`. Sin build step: el CSS se
-  escribe tal cual se sirve.
+- **Stack:** FastAPI (`main.py`) + SQLAlchemy/Alembic (`database.py`,
+  `models.py`, `services/` — ver "Backend y persistencia de datos") +
+  Jinja2 (`templates/index.html`) + CSS/JS estático servidos desde
+  `static/`. Sin build step: el CSS se escribe tal cual se sirve.
+- **Base de datos:** SQLite en local (`nudorosa.db`) o PostgreSQL en
+  producción según exista `DATABASE_URL` en el entorno — automático,
+  ver "Backend y persistencia de datos".
 - **Correr en local:** `./.venv/Scripts/python.exe -m uvicorn main:app
   --port 8000`.
 - **Ancho de referencia de diseño:** ~390px (celular medio) como base;

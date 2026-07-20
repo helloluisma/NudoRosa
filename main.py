@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import re
 import secrets
@@ -379,7 +380,17 @@ async def _requerir_sesion(request: Request, call_next):
 # corra ANTES que _requerir_sesion (y así request.session ya exista
 # cuando el segundo se ejecuta) tiene que registrarse DESPUÉS acá,
 # no antes. Cambiar este orden rompe request.session en toda la app.
-app.add_middleware(SessionMiddleware, secret_key=secrets.token_hex(32))
+#
+# El secret_key tiene que ser estable entre reinicios del proceso (por
+# eso viene de una variable de entorno, no de secrets.token_hex() en
+# cada arranque): si cambia, toda cookie de sesión firmada con el valor
+# anterior queda inválida y la sesión se cierra sola. En Render eso
+# pasa en cada deploy y, en el plan free, cada vez que el servicio
+# despierta de una siesta por inactividad — hay que configurar
+# SECRET_KEY ahí para que iniciar sesión "dure" de verdad.
+app.add_middleware(
+    SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", secrets.token_hex(32))
+)
 
 
 def _contar_cobros_pendientes_global() -> int:
