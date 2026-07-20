@@ -16,7 +16,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
-from database import Base, SessionLocal, engine, get_db
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
+from database import SessionLocal, get_db
 from models import EstadoEntrega, EstadoPago
 from services import ErrorNegocio
 from services import clientas as clientas_service
@@ -357,14 +359,35 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("nudorosa")
 
 
+def _aplicar_migraciones() -> None:
+    """
+    Corre `alembic upgrade head` contra la base activa (SQLite local o
+    la que indique DATABASE_URL en producción) en cada arranque del
+    proceso — nunca `Base.metadata.create_all()`.
+
+    Por qué: create_all() solo CREA tablas que todavía no existen,
+    nunca agrega una columna a una tabla que ya existe. Eso es
+    exactamente lo que rompió `pedidos.tasa_bcv_aplicada` en Neon —
+    Render arranca el proceso sin correr las migraciones a mano en
+    ningún paso del deploy, create_all() ve que `pedidos` ya existe y
+    no hace nada, y la app arranca "bien" con columnas faltantes hasta
+    que el primer INSERT/SELECT que las toca revienta.
+
+    Alembic sí resuelve ambos casos: contra una base nueva corre toda
+    la cadena de migraciones desde cero (equivalente a create_all),
+    y contra una base existente aplica solo las que falten. Es
+    idempotente — si ya está en head, no hace nada — así que correrlo
+    en cada arranque es seguro y no depende de configurar un comando
+    de build/release aparte en el dashboard de Render.
+    """
+    config = AlembicConfig(str(BASE_DIR / "alembic.ini"))
+    alembic_command.upgrade(config, "head")
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    # nudorosa.db no se versiona (ver .gitignore): en un despliegue
-    # nuevo (p. ej. Render) el archivo no existe todavía y hay que
-    # crear el esquema y la administradora inicial antes de aceptar
-    # tráfico, o el login queda sin ningún usuario válido.
-    Base.metadata.create_all(bind=engine)
-    logger.info("Base de datos inicializada.")
+    _aplicar_migraciones()
+    logger.info("Migraciones de base de datos aplicadas.")
 
     db = SessionLocal()
     try:
