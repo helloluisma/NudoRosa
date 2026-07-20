@@ -18,7 +18,6 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from alembic import command as alembic_command
 from alembic.config import Config as AlembicConfig
-from database import SessionLocal, get_db
 from models import EstadoEntrega, EstadoPago
 from services import ErrorNegocio
 from services import clientas as clientas_service
@@ -393,9 +392,11 @@ async def _lifespan(app: FastAPI):
     try:
         habia_administrador = seguridad_service.obtener_administrador(db) is not None
         seguridad_service.asegurar_datos_iniciales(db)
-        logger.info("Usuario administrador ya existente." if habia_administrador else "Usuario administrador creado.")
-
-        tasa_cambio_service.asegurar_tasa_inicial(db)
+        logger.info(
+            "Usuario administrador ya existente."
+            if habia_administrador
+            else "Usuario administrador creado."
+        )
     finally:
         db.close()
 
