@@ -233,7 +233,12 @@ def _serializar_tasa_bcv(tasa) -> dict | None:
     }
 
 
-def _venta_enriquecida(pedido) -> dict | None:
+def _tasa_bolivares_actual(db: Session) -> Decimal | None:
+    tasa_activa = tasa_cambio_service.obtener_tasa_activa(db)
+    return tasa_activa.tasa_bolivares if tasa_activa else None
+
+
+def _venta_enriquecida(pedido, tasa_bolivares_actual: Decimal | None = None) -> dict | None:
     if pedido is None or not pedido.items:
         return None
 
@@ -254,6 +259,18 @@ def _venta_enriquecida(pedido) -> dict | None:
     dias_restantes = (pedido.fecha_vencimiento_pago - hoy).days if pedido.fecha_vencimiento_pago else None
     estado_cobro = _estado_cobro(dias_restantes)
 
+    if pedido.estado_pago == EstadoPago.PAGADO:
+        # Congelados al pagar (ver services/pedidos.py::marcar_pago) —
+        # una tasa BCV nueva nunca puede tocar una venta ya cobrada.
+        tasa_bcv_mostrada = pedido.tasa_bcv_aplicada
+        total_bolivares_mostrado = pedido.total_bolivares
+    else:
+        # Pendiente de pago (o cancelada): el equivalente en bolívares
+        # se recalcula con la tasa BCV vigente en cada lectura — recién
+        # queda fijo cuando de verdad se paga (ver models.Pedido).
+        tasa_bcv_mostrada = tasa_bolivares_actual
+        total_bolivares_mostrado = tasa_cambio_service.convertir_usd_a_bolivares(pedido.total, tasa_bolivares_actual)
+
     venta_base = {
         "id": pedido.id,
         "numero_venta": pedido.numero_pedido,
@@ -264,17 +281,11 @@ def _venta_enriquecida(pedido) -> dict | None:
         "precio_unitario": item.precio_unitario,
         "subtotal": item.subtotal,
         "total": pedido.total,
-        # Snapshot congelado al momento de esta venta (ver
-        # models.Pedido y services/pedidos.py::crear_pedido) — nunca
-        # se recalcula con la tasa BCV actual, o una venta vieja
-        # cambiaría de total en bolívares cada vez que sube el dólar.
-        # None en ventas creadas antes de esta función: la plantilla
-        # no debe inventar un valor para esos casos.
-        "tasa_bcv_aplicada": float(pedido.tasa_bcv_aplicada) if pedido.tasa_bcv_aplicada is not None else None,
-        "total_bolivares": float(pedido.total_bolivares) if pedido.total_bolivares is not None else None,
+        "tasa_bcv_aplicada": float(tasa_bcv_mostrada) if tasa_bcv_mostrada is not None else None,
+        "total_bolivares": float(total_bolivares_mostrado) if total_bolivares_mostrado is not None else None,
         "total_bolivares_formateado": (
-            tasa_cambio_service.formatear_bolivares(pedido.total_bolivares)
-            if pedido.total_bolivares is not None
+            tasa_cambio_service.formatear_bolivares(total_bolivares_mostrado)
+            if total_bolivares_mostrado is not None
             else None
         ),
         "estado_entrega": estado_entrega_legacy,
@@ -483,8 +494,8 @@ def _tasa_bcv_valor_global() -> float | None:
 
     db = SessionLocal()
     try:
-        tasa = tasa_cambio_service.obtener_tasa_activa(db)
-        return float(tasa.tasa_bolivares) if tasa else None
+        tasa = _tasa_bolivares_actual(db)
+        return float(tasa) if tasa is not None else None
     finally:
         db.close()
 
@@ -645,10 +656,11 @@ async def ventas(
     if fin < inicio:
         inicio, fin = fin, inicio
 
-    completas = [_venta_enriquecida(p) for p in pedidos_service.listar_ventas_completadas(db)]
+    tasa_actual = _tasa_bolivares_actual(db)
+    completas = [_venta_enriquecida(p, tasa_actual) for p in pedidos_service.listar_ventas_completadas(db)]
     completas = [v for v in completas if v is not None]
-    activas = [_venta_enriquecida(p) for p in pedidos_service.listar_pedidos_activos(db)]
-    activas += [_venta_enriquecida(p) for p in pedidos_service.listar_cobros_pendientes(db)]
+    activas = [_venta_enriquecida(p, tasa_actual) for p in pedidos_service.listar_pedidos_activos(db)]
+    activas += [_venta_enriquecida(p, tasa_actual) for p in pedidos_service.listar_cobros_pendientes(db)]
     ids_activas = {v["id"] for v in activas if v is not None}
 
     configuracion = seguridad_service.obtener_configuracion(db)
@@ -681,7 +693,8 @@ async def ventas(
 
 @app.get("/ventas/todas")
 async def ventas_todas(request: Request, db: Session = Depends(get_db)):
-    todas = [_venta_enriquecida(p) for p in pedidos_service.listar_ventas_completadas(db)]
+    tasa_actual = _tasa_bolivares_actual(db)
+    todas = [_venta_enriquecida(p, tasa_actual) for p in pedidos_service.listar_ventas_completadas(db)]
     todas = [v for v in todas if v is not None]
 
     configuracion = seguridad_service.obtener_configuracion(db)
@@ -869,7 +882,8 @@ async def inventario(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/cobros")
 async def cobros(request: Request, db: Session = Depends(get_db)):
-    cobros_lista = [_venta_enriquecida(p) for p in pedidos_service.listar_cobros_pendientes(db)]
+    tasa_actual = _tasa_bolivares_actual(db)
+    cobros_lista = [_venta_enriquecida(p, tasa_actual) for p in pedidos_service.listar_cobros_pendientes(db)]
     cobros_lista = [c for c in cobros_lista if c is not None]
     colores = [{"nombre": c.nombre, "hex": c.codigo_hex} for c in colores_service.listar_colores_activos(db)]
 
@@ -1070,7 +1084,8 @@ async def pedidos(request: Request, db: Session = Depends(get_db)):
         {**_serializar_producto(p), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
         for p in productos_service.listar_productos_activos(db)
     ]
-    pedidos_lista = [_venta_enriquecida(p) for p in pedidos_service.listar_pedidos_activos(db)]
+    tasa_actual = _tasa_bolivares_actual(db)
+    pedidos_lista = [_venta_enriquecida(p, tasa_actual) for p in pedidos_service.listar_pedidos_activos(db)]
     pedidos_lista = [p for p in pedidos_lista if p is not None]
     clientes = [clientas_service.serializar_clienta(db, c) for c in clientas_service.listar_clientas_activas(db)]
     colores = [{"nombre": c.nombre, "hex": c.codigo_hex} for c in colores_service.listar_colores_activos(db)]
@@ -1135,7 +1150,7 @@ async def ventas_nueva_guardar(
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})
 
-    return JSONResponse(content={"venta": _venta_enriquecida(pedido)})
+    return JSONResponse(content={"venta": _venta_enriquecida(pedido, _tasa_bolivares_actual(db))})
 
 
 @app.post("/ventas/{venta_id}/entrega")
@@ -1151,7 +1166,7 @@ async def ventas_cambiar_entrega_guardar(venta_id: int, estado: str = Form(...),
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})
 
-    return JSONResponse(content={"venta": _venta_enriquecida(pedido)})
+    return JSONResponse(content={"venta": _venta_enriquecida(pedido, _tasa_bolivares_actual(db))})
 
 
 @app.post("/ventas/{venta_id}/pago")
@@ -1161,7 +1176,7 @@ async def ventas_marcar_pago_guardar(venta_id: int, db: Session = Depends(get_db
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})
 
-    return JSONResponse(content={"venta": _venta_enriquecida(pedido)})
+    return JSONResponse(content={"venta": _venta_enriquecida(pedido, _tasa_bolivares_actual(db))})
 
 
 @app.post("/ventas/{venta_id}/editar")
@@ -1186,7 +1201,7 @@ async def ventas_editar_guardar(
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})
 
-    return JSONResponse(content={"venta": _venta_enriquecida(pedido)})
+    return JSONResponse(content={"venta": _venta_enriquecida(pedido, _tasa_bolivares_actual(db))})
 
 
 @app.post("/ventas/{venta_id}/cancelar")
@@ -1196,7 +1211,7 @@ async def ventas_cancelar_guardar(venta_id: int, db: Session = Depends(get_db)):
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})
 
-    return JSONResponse(content={"venta": _venta_enriquecida(pedido)})
+    return JSONResponse(content={"venta": _venta_enriquecida(pedido, _tasa_bolivares_actual(db))})
 
 
 @app.get("/resumen")

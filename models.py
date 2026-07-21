@@ -258,11 +258,20 @@ class Pedido(Base):
     costo_total: Mapped[int] = mapped_column(Integer, default=0)
     ganancia_total: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Snapshot congelado al momento de la venta (ver
-    # services/tasa_cambio.py y services/pedidos.py::crear_pedido):
-    # una tasa BCV futura nunca puede cambiar el total en bolívares de
-    # una venta ya hecha. Nulos en pedidos creados antes de esta
-    # columna — las plantillas no inventan un valor para esos casos.
+    # Se escriben en dos momentos distintos, a propósito:
+    #   1. Al crear el pedido (services/pedidos.py::crear_pedido) —
+    #      valor inicial, con la tasa de ese instante.
+    #   2. Al marcar el pedido como pagado
+    #      (services/pedidos.py::marcar_pago) — ACÁ es donde quedan
+    #      congelados de verdad, con la tasa vigente en ese momento
+    #      (no necesariamente la misma que en el paso 1).
+    # Mientras el pedido sigue pendiente de pago, estas dos columnas
+    # NO son la fuente de verdad para mostrar el equivalente en
+    # bolívares — main.py::_venta_enriquecida lo recalcula con la tasa
+    # BCV vigente en cada lectura. Una vez pagado, nunca más se tocan:
+    # una tasa BCV nueva no puede cambiar una venta ya cobrada. Nulos
+    # en pedidos creados antes de esta columna — las plantillas no
+    # inventan un valor para esos casos.
     tasa_bcv_aplicada: Mapped[Decimal | None] = mapped_column(Numeric(18, 8), default=None)
     total_bolivares: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), default=None)
 

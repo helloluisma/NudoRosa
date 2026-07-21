@@ -172,9 +172,10 @@ def crear_pedido(
         base = fecha_entrega or hoy
         vencimiento = base + timedelta(days=dias_credito)
 
-    # Snapshot congelado al momento de la venta: si más tarde cambia
-    # la tasa BCV, este pedido tiene que seguir mostrando el mismo
-    # total en bolívares con el que se vendió (ver models.Pedido).
+    # Valor inicial, con la tasa de este instante — NO es el
+    # congelamiento final si el pedido queda pendiente de pago. Ese
+    # ocurre recién en marcar_pago() (ver models.Pedido para el porqué
+    # de los dos momentos).
     tasa_activa = tasa_cambio.obtener_tasa_activa(db)
     tasa_bcv_aplicada = tasa_activa.tasa_bolivares if tasa_activa else None
     total_bolivares = (
@@ -268,6 +269,17 @@ def marcar_pago(db: Session, pedido_id: int) -> Pedido:
     hoy = date.today()
     db.add(Pago(pedido_id=pedido.id, monto=pedido.total, fecha_pago=hoy, metodo_pago="efectivo"))
 
+    # Acá es donde se congelan de verdad tasa_bcv_aplicada y
+    # total_bolivares (ver models.Pedido): mientras estuvo pendiente,
+    # el equivalente en bolívares se mostraba recalculado con la tasa
+    # BCV vigente en cada lectura (main.py::_venta_enriquecida) — al
+    # pagar, se fija la tasa de ESTE momento y nunca más se vuelve a
+    # tocar, sin importar cuánto cambie después la tasa BCV.
+    tasa_activa = tasa_cambio.obtener_tasa_activa(db)
+    if tasa_activa is not None:
+        pedido.tasa_bcv_aplicada = tasa_activa.tasa_bolivares
+        pedido.total_bolivares = tasa_cambio.convertir_usd_a_bolivares(pedido.total, tasa_activa.tasa_bolivares)
+
     pedido.estado_pago = EstadoPago.PAGADO
     pedido.fecha_pago = hoy
     pedido.fecha_vencimiento_pago = None
@@ -320,11 +332,12 @@ def editar_pedido(db: Session, pedido_id: int, color_nombre: str, cantidad: int,
     pedido.ganancia_total = item.subtotal - item.costo_subtotal
     pedido.notas = notas or None
 
-    # Reusa la MISMA tasa ya congelada en la venta (nunca la tasa BCV
-    # actual): solo se actualiza el monto en bolívares para que siga
-    # coincidiendo con el nuevo total en dólares.
-    if pedido.tasa_bcv_aplicada is not None:
-        pedido.total_bolivares = tasa_cambio.convertir_usd_a_bolivares(pedido.total, pedido.tasa_bcv_aplicada)
+    # tasa_bcv_aplicada/total_bolivares NO se tocan acá a propósito:
+    # si el pedido sigue pendiente, main.py::_venta_enriquecida ya
+    # recalcula el equivalente en bolívares con la tasa BCV vigente en
+    # cada lectura (no hace falta guardar nada); si ya está pagado, la
+    # regla de negocio prohíbe modificarlos pase lo que pase con el
+    # total en dólares — se congelaron en marcar_pago() y quedan así.
 
     db.commit()
     db.refresh(pedido)
