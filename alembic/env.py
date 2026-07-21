@@ -1,11 +1,15 @@
+import logging
 import sys
 from logging.config import fileConfig
 from pathlib import Path
 
+import sqlalchemy as sa
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -28,6 +32,77 @@ target_metadata = models.Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+_logger = logging.getLogger("alembic.env")
+
+# Revisión que crea el esquema completo desde cero (todas las tablas
+# de la app). Es la única que puede chocar con una base preexistente
+# creada antes de que este proyecto usara Alembic (ver
+# _bootstrap_baseline_si_hace_falta).
+_REVISION_ESQUEMA_INICIAL = "8c1c0d28abfb"
+
+# Tablas que crea exactamente esa revisión (ver
+# alembic/versions/8c1c0d28abfb_esquema_inicial.py). Se exige que
+# estén TODAS antes de dar por hecho que la base es un "baseline" —
+# con que exista una sola tabla suelta no alcanza.
+_TABLAS_ESQUEMA_INICIAL = {
+    "clientas", "productos", "colores", "producto_colores",
+    "pedidos", "pedido_items", "pagos", "movimientos_inventario",
+    "usuarios", "configuracion", "contador_pedidos",
+}
+
+
+def _bootstrap_baseline_si_hace_falta(connection: sa.Connection) -> None:
+    """
+    Adopta Alembic sobre una base que ya tenía el esquema completo
+    ANTES de que este proyecto lo usara — el caso de Neon, cuyas
+    tablas se crearon alguna vez con Base.metadata.create_all() y
+    nunca quedó registrada ninguna revisión.
+
+    Alembic no infiere versión a partir del esquema: si no existe la
+    tabla `alembic_version`, asume que la base está en <base> (vacía)
+    e intenta correr 8c1c0d28abfb entera — cuyos CREATE TABLE fallan
+    porque esas tablas ya existen (DuplicateTable en Postgres). Eso es
+    justo lo que se vio en el log de Render: "Running upgrade ->
+    8c1c0d28abfb" seguido de un crash.
+
+    Acá se detecta ESE caso puntual — todas las tablas de
+    8c1c0d28abfb presentes, alembic_version ausente — y se registra
+    (stamp) esa revisión como punto de partida, usando la misma API
+    interna que usa el comando `alembic stamp` (MigrationContext.stamp,
+    que además crea la tabla alembic_version si hace falta). No se
+    ejecuta ningún DDL de 8c1c0d28abfb, así que las tablas existentes
+    no se tocan. Con eso hecho, run_migrations_online() sigue su curso
+    normal más abajo y corre solo lo que falte hasta head — hoy,
+    únicamente 22aa14939071 — nunca 8c1c0d28abfb de nuevo, y nunca se
+    salta ninguna migración real.
+
+    Dos casos en los que esta función no hace nada:
+      - Base nueva y vacía (deploy desde cero): no tiene ninguna de
+        las tablas del esquema inicial, así que Alembic corre toda la
+        cadena desde <base> de la forma normal.
+      - Base que ya tiene alembic_version (el caso normal, incluido
+        Render después de este fix): no hay nada que adoptar.
+    """
+    inspector = sa.inspect(connection)
+    tablas_existentes = set(inspector.get_table_names())
+
+    if "alembic_version" in tablas_existentes:
+        return
+
+    if not _TABLAS_ESQUEMA_INICIAL.issubset(tablas_existentes):
+        return
+
+    _logger.warning(
+        "Se encontraron las tablas del esquema inicial sin alembic_version — "
+        "registrando %s como punto de partida antes de migrar (adopción de "
+        "Alembic sobre una base preexistente).",
+        _REVISION_ESQUEMA_INICIAL,
+    )
+
+    migration_ctx = MigrationContext.configure(connection)
+    migration_ctx.stamp(ScriptDirectory.from_config(config), _REVISION_ESQUEMA_INICIAL)
+    connection.commit()
 
 
 def run_migrations_offline() -> None:
@@ -68,6 +143,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        _bootstrap_baseline_si_hace_falta(connection)
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
