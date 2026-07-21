@@ -206,11 +206,49 @@ def _es_venta_completa(venta: dict) -> bool:
     )
 
 
+def _normalizar_imagen_producto(valor: str | None) -> str:
+    """
+    Corrige datos viejos guardados como solo el nombre de archivo
+    (ej. "dobleconcola.png", de antes de que existiera este selector)
+    a la ruta pública real sin tocar la base de datos. Si ya es una
+    ruta (`/static/...`) o una URL completa, se deja tal cual.
+    """
+    if not valor:
+        return ""
+
+    if valor.startswith("/") or valor.startswith("http://") or valor.startswith("https://"):
+        return valor
+
+    return f"/static/images/producto/{valor}"
+
+
+def _listar_imagenes_producto_predeterminadas() -> list[str]:
+    """
+    Imágenes reutilizables para "Elegir imagen" en Nuevo/Editar
+    producto. Se leen del disco, nunca a mano (mismo patrón que
+    _listar_avatares) — cualquier PNG/JPG/WEBP nuevo que se copie a
+    la carpeta aparece solo. Se excluyen los archivos que genera
+    _guardar_imagen_producto() (`producto_<id>.<ext>`): esas son fotos
+    subidas para un producto puntual, no diseños reutilizables.
+    """
+    carpeta = BASE_DIR / "static" / "images" / "producto"
+    archivos = sorted(
+        (
+            archivo
+            for archivo in carpeta.iterdir()
+            if archivo.suffix.lower() in EXTENSIONES_IMAGEN_VALIDAS
+            and not re.match(r"^producto_\d+\.", archivo.name)
+        ),
+        key=lambda archivo: archivo.name,
+    )
+    return [f"/static/images/producto/{archivo.name}" for archivo in archivos]
+
+
 def _serializar_producto(producto) -> dict:
     return {
         "id": producto.id,
         "nombre": producto.nombre,
-        "imagen": producto.imagen or "",
+        "imagen": _normalizar_imagen_producto(producto.imagen),
         "stock": producto.stock_actual,
         "costo_produccion": producto.costo_produccion,
         "precio_publico": producto.precio_publico,
@@ -876,6 +914,7 @@ async def inventario(request: Request, db: Session = Depends(get_db)):
         context={
             "active_nav": None,
             "productos": productos_con_estado,
+            "imagenes_producto_disponibles": _listar_imagenes_producto_predeterminadas(),
         },
     )
 
@@ -909,6 +948,7 @@ async def productos(request: Request, db: Session = Depends(get_db)):
         context={
             "active_nav": "productos",
             "productos": productos_serializados,
+            "imagenes_producto_disponibles": _listar_imagenes_producto_predeterminadas(),
         },
     )
 
@@ -940,6 +980,7 @@ async def productos_nuevo_guardar(
     precio_publico: str = Form(...),
     stock_inicial: str = Form("0"),
     imagen: UploadFile | None = File(None),
+    imagen_predeterminada: str = Form(""),
     db: Session = Depends(get_db),
 ):
     nombre = nombre.strip()
@@ -970,6 +1011,12 @@ async def productos_nuevo_guardar(
             producto.imagen = _guardar_imagen_producto(producto.id, imagen, contenido)
             db.commit()
             db.refresh(producto)
+    elif imagen_predeterminada and imagen_predeterminada in _listar_imagenes_producto_predeterminadas():
+        # Imagen ya existente en static/images/producto/: se guarda la
+        # ruta tal cual, sin copiar ni volver a subir el archivo.
+        producto.imagen = imagen_predeterminada
+        db.commit()
+        db.refresh(producto)
 
     configuracion = seguridad_service.obtener_configuracion(db)
     return JSONResponse(content={
@@ -1025,6 +1072,7 @@ async def productos_editar_guardar(
     precio_publico: str = Form(...),
     stock: str = Form(...),
     imagen: UploadFile | None = File(None),
+    imagen_predeterminada: str = Form(""),
     db: Session = Depends(get_db),
 ):
     nombre = nombre.strip()
@@ -1038,11 +1086,15 @@ async def productos_editar_guardar(
             content={"error": "Revisá el nombre, el costo, el precio y el stock."},
         )
 
-    imagen_url = ""
+    imagen_final = ""
     if imagen is not None and imagen.filename:
         contenido = await imagen.read()
         if contenido:
-            imagen_url = _guardar_imagen_producto(producto_id, imagen, contenido)
+            imagen_final = _guardar_imagen_producto(producto_id, imagen, contenido)
+    elif imagen_predeterminada and imagen_predeterminada in _listar_imagenes_producto_predeterminadas():
+        # Imagen ya existente en static/images/producto/: se guarda la
+        # ruta tal cual, sin copiar ni volver a subir el archivo.
+        imagen_final = imagen_predeterminada
 
     try:
         producto = productos_service.actualizar_producto(
@@ -1052,7 +1104,7 @@ async def productos_editar_guardar(
             costo_produccion=costo,
             precio_publico=precio,
             stock=stock_valor,
-            imagen=imagen_url,
+            imagen=imagen_final,
         )
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})

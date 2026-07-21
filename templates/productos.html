@@ -115,7 +115,22 @@
             <input type="hidden" id="edit-product-id" name="producto_id">
 
             <div class="client-form__field">
-                <label for="edit-product-imagen-input">Imagen</label>
+                <label>Elegir imagen</label>
+
+                <div class="product-image-select__grid" id="edit-product-image-grid">
+                    {% for imagen_url in imagenes_producto_disponibles %}
+                    <button type="button" class="product-image-select__item" data-imagen-url="{{ imagen_url }}" aria-label="Imagen {{ loop.index }}">
+                        <img src="{{ imagen_url }}" alt="">
+                        <span class="product-image-select__check" aria-hidden="true">✔</span>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <input type="hidden" name="imagen_predeterminada" id="edit-product-imagen-predeterminada">
+            </div>
+
+            <div class="client-form__field">
+                <p class="product-image-select__divider">o subí una imagen nueva</p>
 
                 <label class="inventory-image-picker" for="edit-product-imagen-input">
                     <span class="inventory-image-picker__preview" id="edit-product-preview"></span>

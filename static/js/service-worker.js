@@ -13,7 +13,7 @@
  * filtraría datos de negocio en el almacenamiento del dispositivo.
  */
 
-const CACHE_VERSION = "nudo-rosa-v3";
+const CACHE_VERSION = "nudo-rosa-v4";
 
 const RUTAS_PRECARGA = [
     "/static/css/styles.css",

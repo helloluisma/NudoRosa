@@ -873,6 +873,67 @@ function initInventoryAdjustForm() {
 
 document.addEventListener("DOMContentLoaded", initInventoryAdjustForm);
 
+/*
+ * "Elegir imagen" en Nuevo/Editar producto: tocar una de las
+ * imágenes ya existentes en static/images/producto/ (grid) o subir
+ * una nueva (input de archivo) — nunca las dos a la vez, elegir una
+ * limpia la otra. Comparte lógica entre los dos formularios vía el
+ * prefijo del id ("new-product" / "edit-product").
+ */
+function initSelectorImagenProducto(prefijo) {
+    const grid = document.querySelector(`#${prefijo}-image-grid`);
+    const hiddenInput = document.querySelector(`#${prefijo}-imagen-predeterminada`);
+    const preview = document.querySelector(`#${prefijo}-preview`);
+
+    if (!grid || !hiddenInput || !preview) {
+        return;
+    }
+
+    grid.querySelectorAll(".product-image-select__item").forEach((item) => {
+        item.addEventListener("click", () => {
+            grid.querySelectorAll(".product-image-select__item").forEach((el) => {
+                el.classList.remove("is-selected");
+            });
+            item.classList.add("is-selected");
+
+            const url = item.dataset.imagenUrl;
+            hiddenInput.value = url;
+            preview.innerHTML = `<img src="${url}" alt="">`;
+
+            const imagenInput = document.querySelector(`#${prefijo}-imagen-input`);
+            if (imagenInput) {
+                imagenInput.value = "";
+            }
+        });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initSelectorImagenProducto("new-product");
+    initSelectorImagenProducto("edit-product");
+});
+
+function limpiarSeleccionImagenProducto(prefijo) {
+    document
+        .querySelector(`#${prefijo}-image-grid`)
+        ?.querySelectorAll(".product-image-select__item")
+        .forEach((el) => el.classList.remove("is-selected"));
+
+    const hiddenInput = document.querySelector(`#${prefijo}-imagen-predeterminada`);
+    if (hiddenInput) {
+        hiddenInput.value = "";
+    }
+}
+
+function marcarImagenSeleccionadaProducto(prefijo, imagenUrl) {
+    document
+        .querySelector(`#${prefijo}-image-grid`)
+        ?.querySelectorAll(".product-image-select__item")
+        .forEach((item) => {
+            item.classList.toggle("is-selected", Boolean(imagenUrl) && item.dataset.imagenUrl === imagenUrl);
+        });
+}
+
 function initNewProductButton() {
     const modal = document.querySelector("#new-product-modal");
     const triggers = document.querySelectorAll("#new-product-button, #bows-empty-add");
@@ -886,6 +947,7 @@ function initNewProductButton() {
             document.querySelector("#new-product-form").reset();
             document.querySelector("#new-product-preview").innerHTML = ICONO_CAMARA_INVENTARIO;
             document.querySelector("#new-product-error").hidden = true;
+            limpiarSeleccionImagenProducto("new-product");
             abrirHojaInferior(modal);
         });
     });
@@ -911,6 +973,8 @@ function initNewProductForm() {
             return;
         }
 
+        limpiarSeleccionImagenProducto("new-product");
+
         const lector = new FileReader();
 
         lector.onload = () => {
@@ -933,6 +997,7 @@ function initNewProductForm() {
             modal.hidden = true;
             form.reset();
             preview.innerHTML = ICONO_CAMARA_INVENTARIO;
+            limpiarSeleccionImagenProducto("new-product");
             mostrarToast("Producto agregado ✓");
         } catch (err) {
             error.textContent = err.message;
@@ -971,6 +1036,17 @@ function abrirModalEditarProducto(tarjeta) {
     preview.innerHTML = imagen ? `<img src="${imagen}" alt="">` : ICONO_CAMARA_INVENTARIO;
     error.hidden = true;
     error.textContent = "";
+
+    // Si la imagen actual es una de las predeterminadas, queda
+    // marcada en el grid — pero el campo oculto arranca vacío: no
+    // reenviar nada a menos que la clienta elija activamente una
+    // imagen nueva (mismo criterio que "no tocar" del input de
+    // archivo cuando no se elige un archivo nuevo).
+    marcarImagenSeleccionadaProducto("edit-product", imagen);
+    const imagenPredeterminadaInput = document.querySelector("#edit-product-imagen-predeterminada");
+    if (imagenPredeterminadaInput) {
+        imagenPredeterminadaInput.value = "";
+    }
 
     abrirHojaInferior(modal);
 }
@@ -1029,6 +1105,8 @@ function initEditProductForm() {
         if (!archivo) {
             return;
         }
+
+        limpiarSeleccionImagenProducto("edit-product");
 
         const lector = new FileReader();
 

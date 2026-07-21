@@ -94,25 +94,40 @@ def _bootstrap_baseline_si_hace_falta(connection: sa.Connection) -> None:
       - Base que ya tiene alembic_version (el caso normal, incluido
         Render después de este fix): no hay nada que adoptar.
     """
-    inspector = sa.inspect(connection)
-    tablas_existentes = set(inspector.get_table_names())
+    # El propio sa.inspect(connection).get_table_names() de abajo ya
+    # ejecuta una consulta sobre `connection` — en SQLAlchemy 2.0 eso
+    # arranca solo una transacción implícita ("autobegin"). Si esta
+    # función vuelve sin comprometerla (los dos `return` de abajo, que
+    # son el caso normal), esa transacción queda abierta. Cuando
+    # context.begin_transaction() la encuentra ya abierta, usa un
+    # SAVEPOINT en vez de una transacción de nivel superior — el
+    # RELEASE SAVEPOINT al final "funciona" (por eso el log decía
+    # éxito), pero la transacción externa nunca se comete, y al cerrar
+    # la conexión Postgres la revierte — con savepoint y todo. El
+    # try/finally garantiza un commit acá pase lo que pase, para que
+    # context.begin_transaction() arranque siempre sobre una conexión
+    # limpia y su propio commit sea el que de verdad persiste.
+    try:
+        inspector = sa.inspect(connection)
+        tablas_existentes = set(inspector.get_table_names())
 
-    if "alembic_version" in tablas_existentes:
-        return
+        if "alembic_version" in tablas_existentes:
+            return
 
-    if not _TABLAS_ESQUEMA_INICIAL.issubset(tablas_existentes):
-        return
+        if not _TABLAS_ESQUEMA_INICIAL.issubset(tablas_existentes):
+            return
 
-    _logger.warning(
-        "Se encontraron las tablas del esquema inicial sin alembic_version — "
-        "registrando %s como punto de partida antes de migrar (adopción de "
-        "Alembic sobre una base preexistente).",
-        _REVISION_ESQUEMA_INICIAL,
-    )
+        _logger.warning(
+            "Se encontraron las tablas del esquema inicial sin alembic_version — "
+            "registrando %s como punto de partida antes de migrar (adopción de "
+            "Alembic sobre una base preexistente).",
+            _REVISION_ESQUEMA_INICIAL,
+        )
 
-    migration_ctx = MigrationContext.configure(connection)
-    migration_ctx.stamp(ScriptDirectory.from_config(config), _REVISION_ESQUEMA_INICIAL)
-    connection.commit()
+        migration_ctx = MigrationContext.configure(connection)
+        migration_ctx.stamp(ScriptDirectory.from_config(config), _REVISION_ESQUEMA_INICIAL)
+    finally:
+        connection.commit()
 
 
 def run_migrations_offline() -> None:
