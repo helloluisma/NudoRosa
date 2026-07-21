@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -19,7 +20,16 @@ import models  # noqa: E402  (registra todas las tablas en Base.metadata)
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+
+# Las migraciones corren mejor contra la conexión DIRECTA de Neon, no
+# la pooled (PgBouncer en modo transacción no sostiene bien una
+# migración de varias sentencias dependientes entre sí — Neon lo
+# documenta así). DATABASE_URL_UNPOOLED es opcional: si no está
+# seteada (SQLite local, o cualquier Postgres sin pooler de por medio),
+# se cae a la misma DATABASE_URL que usa el resto de la app.
+config.set_main_option(
+    "sqlalchemy.url", os.environ.get("DATABASE_URL_UNPOOLED", DATABASE_URL)
+)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
