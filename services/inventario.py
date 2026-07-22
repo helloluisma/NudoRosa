@@ -4,6 +4,8 @@ producto.stock_actual directamente desde otro servicio o ruta, para
 que ningún movimiento quede sin registrar en el historial.
 """
 
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
 from models import MovimientoInventario, Producto, TipoMovimientoInventario
@@ -17,7 +19,7 @@ def registrar_movimiento(
     cantidad: int,
     motivo: str = "",
     pedido_id: int | None = None,
-    costo_unitario: int | None = None,
+    costo_unitario: Decimal | int | None = None,
     usuario_id: int | None = None,
 ) -> MovimientoInventario:
     """cantidad positiva = entrada, negativa = salida (ver

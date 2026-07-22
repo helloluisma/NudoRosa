@@ -43,6 +43,28 @@
                 <strong>{{ producto.stock }} u.</strong>
             </div>
         </div>
+
+        <div class="summary-item">
+            <span class="summary-item__icon" aria-hidden="true">🧵</span>
+            <div class="summary-item__text">
+                <small>Lo que costó hacerlo</small>
+                <strong>{{ producto.costo_produccion_formateado }}</strong>
+                {% if producto.costo_produccion_bs %}
+                <small class="summary-item__bs">{{ producto.costo_produccion_bs }}</small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="summary-item">
+            <span class="summary-item__icon" aria-hidden="true">✨</span>
+            <div class="summary-item__text">
+                <small>Lo que ganás por unidad</small>
+                <strong>{{ producto.ganancia_unitaria_formateada }}</strong>
+                {% if producto.ganancia_unitaria_bs %}
+                <small class="summary-item__bs">{{ producto.ganancia_unitaria_bs }}</small>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </section>
 

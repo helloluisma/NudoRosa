@@ -144,6 +144,20 @@ nuevo parecido):
   `data.py` ya tienen un avatar real asignado (no `""`) para que el diseño
   se vea acomodado — si se agrega una clienta de prueba nueva, asignarle
   también un avatar en vez de dejarlo vacío.
+- **Selector de imagen de producto** (`_nuevo_producto_modal.html` +
+  `productos.html`, sección "INVENTARIO" de `styles.css`): mismo patrón que
+  el selector de avatar de arriba, pero con la tarjeta cuadrada de
+  `.bow-card__image` en vez de un círculo — una foto de lazo no debe
+  recortarse como si fuera una cara. `.product-image-select__grid` muestra
+  TODAS las imágenes reutilizables de `static/images/producto/`, armadas
+  leyendo el disco con `_listar_imagenes_producto_predeterminadas()` en
+  `main.py` (nunca a mano), excluyendo los archivos `producto_<id>.<ext>`
+  que genera una subida — esos son fotos de un producto puntual, no
+  diseños reutilizables. Elegir una imagen del grid guarda la ruta
+  directo, sin volver a subir el archivo; subir un archivo nuevo limpia la
+  selección del grid y viceversa (`initSelectorImagenProducto()` en
+  `app.js`, compartida entre Nuevo y Editar producto — no duplicar esa
+  lógica por pantalla).
 - **Modal tipo hoja inferior:** `.modal--sheet` es la variante de `.modal`
   que sube desde abajo (`transform: translateY` + clase `is-open`, ver
   `abrirHojaInferior()` en `app.js` — función compartida, no duplicar ese
@@ -151,11 +165,14 @@ nuevo parecido):
   un formulario largo (scroll vertical vía `.inventory-sheet-form`). Para
   confirmaciones simples (sí/no) se sigue usando `.modal__dialog` centrado,
   como en `#delete-confirm-modal` / `#delete-product-modal`.
-- **Catálogo de productos único:** `data.PRODUCTOS` es la ÚNICA lista de
-  productos — Inventario (`/inventario`) y Mis Lazos (`/productos`) leen y
-  escriben sobre el mismo registro (stock/costo/precio de un lado, nombre/
-  imagen del otro). Nunca crear una segunda lista de productos "solo para
-  esta pantalla".
+- **Catálogo de productos único:** la tabla `productos` (`models.Producto`,
+  vía `services/productos.py`) es la ÚNICA fuente de productos —
+  Inventario (`/inventario`) y Mis Lazos (`/productos`) leen y escriben
+  sobre el mismo registro (stock/costo/precio de un lado, nombre/imagen
+  del otro). Nunca crear una segunda lista de productos "solo para esta
+  pantalla". `data.py` ya no es la fuente en runtime — solo alimenta
+  `seed.py` para cargar datos de muestra la primera vez (ver "Backend y
+  persistencia de datos").
 - **Tarjeta de producto:** `.bow-card` + `.bow-card__image` (sección 12,
   "CATÁLOGO DE PRODUCTOS") es el componente para "imagen + nombre" de un
   producto. Siempre es un `<button>` (nunca `<a>`: tocarlo abre un modal,
@@ -196,6 +213,17 @@ nuevo parecido):
   tenía): toda la app comparte el único fondo (`--fondo-app` del `body`).
   No volver a agregarle un `background` a `.sales-screen` — eso es
   exactamente el "doble fondo" que se corrigió.
+- **Preguntas de "Mis materiales" en el formulario de producto:**
+  `templates/_materiales_producto_campos.html` es el único lugar donde
+  viven las 5 preguntas (lazos por metro de tela, lazos por barra de
+  silicón, cantidad de ganchos, ¿usa hilo?, minutos de elaboración) — se
+  incluye con `{% set form_prefix = "..." %}` + `{% include %}` en
+  `_nuevo_producto_modal.html` y en el modal de edición de
+  `productos.html`, igual que el patrón de `_flat_header.html` para
+  armar ids únicos por copia. Reemplazan el campo manual "Costo de
+  producción" que existía antes — no se vuelve a agregar un input de
+  costo a mano en el formulario de producto (ver "Costo de elaboración
+  (Mis materiales)" más abajo).
 
 ---
 
@@ -275,12 +303,32 @@ Vive en `static/js/app.js`.
   cambio a un modelo en `models.py` (columna nueva, tabla nueva, índice)
   necesita una migración
   (`alembic revision --autogenerate -m "..."` seguido de
-  `alembic upgrade head`). No alcanza con `Base.metadata.create_all()`
-  para eso — esa llamada (la usa el `lifespan` de `main.py` como red de
-  seguridad) solo crea tablas que todavía no existen, nunca modifica una
-  tabla existente. `alembic/env.py` ya lee `DATABASE_URL` desde
-  `database.py`, así que las migraciones corren contra SQLite o
-  PostgreSQL sin configuración extra.
+  `alembic upgrade head`). `_aplicar_migraciones()` en el `lifespan` de
+  `main.py` corre `alembic upgrade head` en cada arranque del proceso —
+  nunca `Base.metadata.create_all()` (esa llamada solo crea tablas que
+  todavía no existen, nunca modifica una tabla existente; así se rompió
+  `pedidos.tasa_bcv_aplicada` en producción una vez).
+  - **`alembic/env.py` adopta bases preexistentes, con cuidado:** si una
+    base ya tiene todas las tablas del esquema inicial pero no existe
+    `alembic_version` (por ejemplo, una base creada con `create_all()` de
+    antes de que este proyecto usara Alembic), `_bootstrap_baseline_si_hace_falta`
+    registra (stamp) la revisión inicial sin ejecutar su DDL, para que
+    Alembic corra solo lo que falte hacia head — nunca vuelve a intentar
+    crear una tabla que ya existe. Esa función lee la conexión ANTES de
+    que Alembic abra su propia transacción; el `try/finally` con
+    `connection.commit()` al final no es opcional — sin él, esa lectura
+    deja una transacción implícita abierta que absorbe la migración real
+    en un SAVEPOINT y la revierte entera al cerrar la conexión (pasó en
+    producción: el log decía "Migración completada" y no quedaba nada
+    guardado). Si se toca este archivo, no quitar ese commit.
+  - **Migraciones por la conexión directa, no la pooled:** si existe
+    `DATABASE_URL_UNPOOLED` en el entorno, `env.py` la usa en vez de
+    `DATABASE_URL` para migrar — Neon lo documenta así: PgBouncer en modo
+    transacción no sostiene bien una migración de varias sentencias
+    dependientes entre sí. La app en runtime sigue usando `DATABASE_URL`
+    (pooled) sin cambios; esto es solo para Alembic. Si la variable no
+    existe, cae a `DATABASE_URL` sin romper nada (SQLite local, o
+    cualquier Postgres sin pooler de por medio).
 - **Enums como texto:** los `Enum` de `models.py` se guardan con
   `native_enum=False` (columna `VARCHAR`, no el tipo `ENUM` nativo de
   cada motor) — es más portable entre SQLite y PostgreSQL. No cambiar a
@@ -291,6 +339,91 @@ Vive en `static/js/app.js`.
   nada, cada sección se salta si su tabla ya tiene filas. Se corre a
   mano (`./.venv/Scripts/python.exe seed.py`), nunca automáticamente al
   arrancar la app.
+- **Tasa de cambio BCV** (`services/tasa_cambio.py`, `models.TasaCambio`):
+  historial completo, nunca se sobreescribe una fila — solo una queda
+  `activa=True` por moneda, y `obtener_tasa_activa()` es la única forma de
+  leerla. `actualizar_tasa_automatica()` consulta bcv.org.ve en vivo (el
+  selector exacto está documentado en el propio archivo — un rediseño del
+  sitio del BCV puede romper el parseo); si la consulta falla, NUNCA toca
+  la tasa activa ni guarda cero, solo informa el error y mantiene la
+  última tasa válida. `convertir_usd_a_bolivares()`, `formatear_usd()` y
+  `formatear_bolivares()` son la única fuente de verdad para armar texto
+  de moneda (formato venezolano: punto de miles, coma decimal, ej.
+  `Bs. 1.210,74`) — `app.js` tiene el mismo formato replicado a propósito
+  (`formatoMoneda()` / `formatoBolivares()`, ahí no hay acceso a Python),
+  así que cualquier cambio de formato tiene que actualizar los dos lados.
+  - **Cuándo se congela la tasa de un pedido:** `Pedido.tasa_bcv_aplicada`
+    / `total_bolivares` se escriben al crear el pedido, pero ese valor
+    inicial NO es la fuente de verdad mientras sigue pendiente de pago —
+    `main.py::_venta_enriquecida` recalcula el equivalente en bolívares
+    con la tasa BCV vigente en cada lectura. Recién se congelan de verdad
+    al marcar el pedido como pagado
+    (`services/pedidos.py::marcar_pago`): ahí se fija la tasa de ESE
+    momento y nunca más se toca, sin importar cuánto cambie después la
+    tasa BCV — por eso `editar_pedido()` nunca modifica estas dos
+    columnas. Una tasa BCV nueva solo puede afectar: precios actuales de
+    productos, ventas nuevas, y pedidos todavía pendientes de pago.
+- **Costo de elaboración — "Mis materiales"** (`services/materiales.py`,
+  `models.Material`): el costo de un lazo (`Producto.costo_produccion`)
+  ya no se carga a mano — se calcula solo a partir de 4 materiales fijos
+  (tela, silicón, gancho, hilo — siempre esas 4 filas, sembradas una vez
+  por `asegurar_materiales_iniciales()` en el `lifespan`, nunca se crean
+  ni borran desde la UI) más el % de "pequeños materiales" y el valor de
+  la hora de trabajo de `Configuracion`. Todo el cálculo corre en
+  **bolívares** (así los compra Ivanna) y recién al final se convierte a
+  dólares con la tasa BCV vigente (`materiales.convertir_bolivares_a_usd`,
+  inverso de `tasa_cambio.convertir_usd_a_bolivares`) — el dólar sigue
+  siendo la fuente de verdad para `precio_publico`/`ganancia_total`.
+  - **Rendimiento: por producto o por material, según cuál varía.**
+    Cuántos lazos salen de un metro de tela o de una barra de silicón
+    depende de CADA producto (`Producto.lazos_por_metro_tela` /
+    `lazos_por_barra_silicon`) — cuántos ganchos trae un paquete o
+    cuántos lazos rinde un carrete de hilo es una constante del
+    material (`Material.rendimiento`, solo en gancho/hilo — ver
+    `METADATA_MATERIAL`), no cambia de un producto a otro.
+  - **Vivo mientras no se vendió, congelado al vender:** igual patrón
+    que la tasa BCV. `Producto.costo_produccion` se recalcula
+    (`materiales.recalcular_costo_producto` /
+    `recalcular_productos_con_materiales`) cada vez que cambia el
+    precio de un material, el % de pequeños materiales, la hora de
+    trabajo, la tasa BCV, o se guarda el producto — así que siempre
+    refleja el costo actual. Al vender, `services/pedidos.py::crear_pedido`
+    copia ese valor a `PedidoItem.costo_unitario`/`costo_subtotal` y
+    `Pedido.costo_total`/`ganancia_total`, que ya NO se vuelven a tocar
+    (reutiliza el mecanismo de "congelar al pagar" que ya existía para
+    la tasa BCV, sin columnas nuevas en `Pedido`).
+  - **`minutos_elaboracion IS NOT NULL` es la señal de "este producto usa
+    la calculadora".** Un producto creado antes de esta funcionalidad
+    (los 5 campos en `NULL`) sigue mostrando su `costo_produccion`
+    manual tal cual, sin romperse — nunca se le inventa un valor.
+    "Ajustar inventario" (`services/productos.py::ajustar_producto`)
+    respeta esto: si el producto ya usa materiales, ignora el costo
+    manual del formulario y recalcula en vivo en su lugar.
+  - **`Numeric`, no `Integer`, en las columnas de costo/ganancia.** Un
+    costo convertido desde bolívares casi siempre cae en centavos —
+    guardarlo en un `Integer` (como sigue siendo `precio_publico`, en
+    dólares enteros) redondeaba varios lazos a costo $0. Por eso
+    `Producto.costo_produccion`, `PedidoItem.costo_unitario`/
+    `costo_subtotal`, `Pedido.costo_total`/`ganancia_total` y
+    `MovimientoInventario.costo_unitario` son `Numeric`, migrados desde
+    `Integer` con `alembic/versions/2222c866c6b8_...py` (usa
+    `batch_alter_table` para que también funcione en SQLite, que no
+    soporta `ALTER COLUMN TYPE` directo).
+    - **Trampa ya encontrada:** `json.dumps`/`JSONResponse` no sabe
+      serializar `Decimal` — cualquier valor que salga de estas
+      columnas hacia una respuesta JSON (no hacia una plantilla Jinja,
+      ahí `formatear_usd`/`formatear_bolivares` ya aceptan `Decimal`)
+      tiene que cruzar a `float()` antes (ver `_venta_enriquecida` en
+      `main.py`). Olvidarlo tira "Internal Server Error" recién al
+      completar una venta de un producto con costo calculado — no al
+      crear el producto, porque ahí `_serializar_producto` ya
+      convierte todo a `float`.
+  - **Dólar arriba, bolívares abajo, siempre** (mismo criterio que el
+    resto de la app): el formulario de producto muestra "Lo que costó
+    hacerlo" con el dólar como valor principal
+    (`formatear_usd`/`.materiales-costo-preview strong`) y el bolívar
+    como referencia chica debajo — nunca al revés, aunque el cálculo
+    interno sea en bolívares.
 
 ---
 
@@ -339,7 +472,9 @@ Vive en `static/js/app.js`.
   `static/`. Sin build step: el CSS se escribe tal cual se sirve.
 - **Base de datos:** SQLite en local (`nudorosa.db`) o PostgreSQL en
   producción según exista `DATABASE_URL` en el entorno — automático,
-  ver "Backend y persistencia de datos".
+  ver "Backend y persistencia de datos". En producción, `DATABASE_URL`
+  (pooled) es para la app; `DATABASE_URL_UNPOOLED` (directa, opcional) es
+  para que Alembic migre sin pasar por el pooler.
 - **Correr en local:** `./.venv/Scripts/python.exe -m uvicorn main:app
   --port 8000`.
 - **Ancho de referencia de diseño:** ~390px (celular medio) como base;

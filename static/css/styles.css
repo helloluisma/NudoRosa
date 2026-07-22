@@ -1134,6 +1134,15 @@ button.list-row.is-selected {
     font-weight: 800;
 }
 
+/* Texto introductorio de pantalla, hoy solo en "Mis materiales". */
+.materiales-intro {
+    margin: 0;
+    color: var(--texto-suave);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
 .list-empty {
     padding: var(--space-4-fl);
     border-radius: var(--radius-s);
@@ -2721,6 +2730,51 @@ button.list-row.is-disabled {
 
 .client-form__hint-bs:empty {
     display: none;
+}
+
+/* "Mis materiales" en el formulario de producto (ver
+   _materiales_producto_campos.html + calcularCostoEnVivo en app.js):
+   checkbox "usa hilo" y tarjeta de vista previa del costo, dólares
+   como valor principal y bolívares como referencia abajo — mismo
+   criterio que .summary-item__bs en el resto de la app. */
+.materiales-campo-hilo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--vino);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.materiales-campo-hilo input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--rosa-fuerte);
+}
+
+.materiales-costo-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-m);
+    background: var(--rosa-claro);
+    text-align: center;
+}
+
+.materiales-costo-preview[hidden] { display: none; }
+
+.materiales-costo-preview small:first-child {
+    color: var(--vino);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.materiales-costo-preview strong {
+    color: var(--vino);
+    font-size: 1.3rem;
+    font-weight: 900;
 }
 
 .client-form__input-wrap {

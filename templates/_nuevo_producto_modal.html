@@ -55,16 +55,8 @@
                 </div>
             </div>
 
-            <div class="client-form__field">
-                <label for="new-product-costo">Costo de producción</label>
-                <div class="client-form__input-wrap">
-                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
-                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
-                    </svg>
-                    <input type="number" id="new-product-costo" name="costo_produccion" min="0" step="1" placeholder="Ej. 80" required>
-                </div>
-            </div>
+            {% set form_prefix = "new-product" %}
+            {% include "_materiales_producto_campos.html" %}
 
             <div class="client-form__field">
                 <label for="new-product-precio">Precio al público</label>

@@ -1,0 +1,61 @@
+<!--
+    Preguntas de "Mis materiales" — reemplazan la entrada manual de
+    costo en los formularios de crear/editar producto (ver
+    services/materiales.py y CLAUDE.md). Compartido por
+    _nuevo_producto_modal.html y el modal de edición de
+    productos.html: `form_prefix` arma los ids únicos de cada copia
+    ("new-product" / "edit-product"), igual que ya hace
+    _flat_header.html con sus variables.
+-->
+
+<div class="client-form__field">
+    <label for="{{ form_prefix }}-lazos-tela">¿Cuántos lazos salen de 1 metro de tela?</label>
+    <div class="client-form__input-wrap">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        <input type="number" id="{{ form_prefix }}-lazos-tela" name="lazos_por_metro_tela" min="1" step="1" placeholder="Ej. 8" required class="materiales-campo-costo">
+    </div>
+</div>
+
+<div class="client-form__field">
+    <label for="{{ form_prefix }}-lazos-silicon">¿Cuántos lazos salen de 1 barra de silicón?</label>
+    <div class="client-form__input-wrap">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        <input type="number" id="{{ form_prefix }}-lazos-silicon" name="lazos_por_barra_silicon" min="1" step="1" placeholder="Ej. 20" required class="materiales-campo-costo">
+    </div>
+</div>
+
+<div class="client-form__field">
+    <label for="{{ form_prefix }}-ganchos">¿Cuántos ganchitos usa este lazo?</label>
+    <div class="client-form__input-wrap">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        <input type="number" id="{{ form_prefix }}-ganchos" name="cantidad_ganchos" min="0" step="1" placeholder="Ej. 1" required class="materiales-campo-costo">
+    </div>
+</div>
+
+<label class="materiales-campo-hilo">
+    <input type="checkbox" id="{{ form_prefix }}-usa-hilo" name="usa_hilo" checked class="materiales-campo-costo">
+    <span>Este lazo lleva hilo</span>
+</label>
+
+<div class="client-form__field">
+    <label for="{{ form_prefix }}-minutos">¿Cuántos minutos tardas en hacerlo?</label>
+    <div class="client-form__input-wrap">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5"></circle>
+            <path d="M12 7.5V12l3 2"></path>
+        </svg>
+        <input type="number" id="{{ form_prefix }}-minutos" name="minutos_elaboracion" min="1" step="1" placeholder="Ej. 15" required class="materiales-campo-costo">
+    </div>
+</div>
+
+<div class="materiales-costo-preview" id="{{ form_prefix }}-costo-preview" hidden>
+    <small>Lo que costó hacerlo</small>
+    <strong id="{{ form_prefix }}-costo-preview-usd"></strong>
+    <small class="summary-item__bs" id="{{ form_prefix }}-costo-preview-bs"></small>
+</div>

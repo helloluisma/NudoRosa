@@ -24,6 +24,7 @@ from services import ErrorNegocio
 from services import clientas as clientas_service
 from services import colores as colores_service
 from services import inventario as inventario_service
+from services import materiales as materiales_service
 from services import pedidos as pedidos_service
 from services import productos as productos_service
 from services import resumen as resumen_service
@@ -244,14 +245,40 @@ def _listar_imagenes_producto_predeterminadas() -> list[str]:
     return [f"/static/images/producto/{archivo.name}" for archivo in archivos]
 
 
-def _serializar_producto(producto) -> dict:
+def _serializar_producto(producto, tasa_bolivares_actual: Decimal | None = None) -> dict:
     return {
         "id": producto.id,
         "nombre": producto.nombre,
         "imagen": _normalizar_imagen_producto(producto.imagen),
         "stock": producto.stock_actual,
-        "costo_produccion": producto.costo_produccion,
+        "costo_produccion": float(producto.costo_produccion),
+        "costo_produccion_formateado": tasa_cambio_service.formatear_usd(producto.costo_produccion),
+        "costo_produccion_bs": (
+            tasa_cambio_service.formatear_bolivares(
+                tasa_cambio_service.convertir_usd_a_bolivares(producto.costo_produccion, tasa_bolivares_actual)
+            )
+            if tasa_bolivares_actual is not None
+            else None
+        ),
         "precio_publico": producto.precio_publico,
+        "ganancia_unitaria_formateada": tasa_cambio_service.formatear_usd(
+            producto.precio_publico - producto.costo_produccion
+        ),
+        "ganancia_unitaria_bs": (
+            tasa_cambio_service.formatear_bolivares(
+                tasa_cambio_service.convertir_usd_a_bolivares(
+                    producto.precio_publico - producto.costo_produccion, tasa_bolivares_actual
+                )
+            )
+            if tasa_bolivares_actual is not None
+            else None
+        ),
+        "usa_calculadora_materiales": producto.minutos_elaboracion is not None,
+        "lazos_por_metro_tela": producto.lazos_por_metro_tela,
+        "lazos_por_barra_silicon": producto.lazos_por_barra_silicon,
+        "cantidad_ganchos": producto.cantidad_ganchos,
+        "usa_hilo": producto.usa_hilo,
+        "minutos_elaboracion": producto.minutos_elaboracion,
     }
 
 
@@ -336,7 +363,13 @@ def _venta_enriquecida(pedido, tasa_bolivares_actual: Decimal | None = None) -> 
         "cancelada": pedido.estado_entrega == EstadoEntrega.CANCELADO,
     }
 
-    ganancia_unitaria = item.precio_unitario - item.costo_unitario
+    # float(): item.costo_unitario/pedido.costo_total/ganancia_total
+    # son Numeric desde que existe "Mis materiales" (ver models.py) —
+    # json.dumps no sabe serializar Decimal, así que todo lo que sale
+    # en la respuesta JSON tiene que cruzar a float acá.
+    ganancia_unitaria = float(item.precio_unitario - item.costo_unitario)
+    costo_total = float(pedido.costo_total)
+    ganancia_total = float(pedido.ganancia_total)
 
     return {
         **venta_base,
@@ -347,7 +380,7 @@ def _venta_enriquecida(pedido, tasa_bolivares_actual: Decimal | None = None) -> 
             "avatar": cliente.avatar or "",
             "telefono": cliente.telefono or "",
         },
-        "producto": _serializar_producto(producto),
+        "producto": _serializar_producto(producto, tasa_bolivares_actual),
         "estado_entrega_info": _estado_entrega(estado_entrega_legacy),
         "estado_pago_info": _estado_pago_info(estado_pago_legacy),
         "estado_derivado": _estado_derivado(venta_base),
@@ -365,7 +398,10 @@ def _venta_enriquecida(pedido, tasa_bolivares_actual: Decimal | None = None) -> 
             and pedido.estado_entrega != EstadoEntrega.CANCELADO
         ),
         "ganancia_unitaria": ganancia_unitaria,
-        "ganancia_total": pedido.ganancia_total,
+        "costo_total": costo_total,
+        "costo_total_formateado": tasa_cambio_service.formatear_usd(costo_total),
+        "ganancia_total": ganancia_total,
+        "ganancia_total_formateado": tasa_cambio_service.formatear_usd(ganancia_total),
         "whatsapp_url": (
             _whatsapp_url(cliente.telefono or "", cliente.nombres, pedido.total)
             if estado_cobro["atrasado"] else None
@@ -449,6 +485,7 @@ async def _lifespan(app: FastAPI):
         )
 
         tasa_cambio_service.asegurar_tasa_inicial(db)
+        materiales_service.asegurar_materiales_iniciales(db)
     finally:
         db.close()
 
@@ -703,7 +740,7 @@ async def ventas(
 
     configuracion = seguridad_service.obtener_configuracion(db)
     productos_con_estado = [
-        {**_serializar_producto(p), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
+        {**_serializar_producto(p, tasa_actual), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
         for p in productos_service.listar_productos_activos(db)
     ]
     clientes = [clientas_service.serializar_clienta(db, c) for c in clientas_service.listar_clientas_activas(db)]
@@ -737,7 +774,7 @@ async def ventas_todas(request: Request, db: Session = Depends(get_db)):
 
     configuracion = seguridad_service.obtener_configuracion(db)
     productos_con_estado = [
-        {**_serializar_producto(p), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
+        {**_serializar_producto(p, tasa_actual), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
         for p in productos_service.listar_productos_activos(db)
     ]
     clientes = [clientas_service.serializar_clienta(db, c) for c in clientas_service.listar_clientas_activas(db)]
@@ -903,8 +940,9 @@ async def cliente_eliminar(cliente_id: int, db: Session = Depends(get_db)):
 @app.get("/inventario")
 async def inventario(request: Request, db: Session = Depends(get_db)):
     configuracion = seguridad_service.obtener_configuracion(db)
+    tasa_actual = _tasa_bolivares_actual(db)
     productos_con_estado = [
-        {**_serializar_producto(p), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
+        {**_serializar_producto(p, tasa_actual), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
         for p in productos_service.listar_productos_activos(db)
     ]
 
@@ -940,7 +978,10 @@ async def cobros(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/productos")
 async def productos(request: Request, db: Session = Depends(get_db)):
-    productos_serializados = [_serializar_producto(p) for p in productos_service.listar_productos_activos(db)]
+    tasa_actual = _tasa_bolivares_actual(db)
+    productos_serializados = [
+        _serializar_producto(p, tasa_actual) for p in productos_service.listar_productos_activos(db)
+    ]
 
     return templates.TemplateResponse(
         request=request,
@@ -960,47 +1001,83 @@ async def producto_detalle(request: Request, producto_id: int, db: Session = Dep
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     configuracion = seguridad_service.obtener_configuracion(db)
+    tasa_actual = _tasa_bolivares_actual(db)
 
     return templates.TemplateResponse(
         request=request,
         name="producto_detalle.html",
         context={
             "active_nav": "productos",
-            "producto": _serializar_producto(producto),
+            "producto": _serializar_producto(producto, tasa_actual),
             "estado": _estado_producto(producto.stock_actual, configuracion.limite_poco_stock),
             "ventas_recientes": pedidos_service.listar_ventas_recientes_por_producto(db, producto_id),
         },
     )
 
 
+def _parsear_datos_materiales_form(
+    lazos_por_metro_tela: str,
+    lazos_por_barra_silicon: str,
+    cantidad_ganchos: str,
+    usa_hilo: str,
+    minutos_elaboracion: str,
+) -> dict | None:
+    """Las 5 preguntas de "Mis materiales" del formulario de
+    producto — reemplazan la entrada manual de costo (ver
+    CLAUDE.md). None si algún valor requerido no es un número
+    válido, para que la ruta devuelva un error claro."""
+
+    tela = _parsear_entero_no_negativo(lazos_por_metro_tela)
+    silicon = _parsear_entero_no_negativo(lazos_por_barra_silicon)
+    ganchos = _parsear_entero_no_negativo(cantidad_ganchos)
+    minutos = _parsear_entero_no_negativo(minutos_elaboracion)
+
+    if tela is None or silicon is None or ganchos is None or minutos is None:
+        return None
+
+    return {
+        "lazos_por_metro_tela": tela,
+        "lazos_por_barra_silicon": silicon,
+        "cantidad_ganchos": ganchos,
+        "usa_hilo": usa_hilo in ("on", "true", "1"),
+        "minutos_elaboracion": minutos,
+    }
+
+
 @app.post("/productos/nuevo")
 async def productos_nuevo_guardar(
     nombre: str = Form(...),
-    costo_produccion: str = Form(...),
     precio_publico: str = Form(...),
     stock_inicial: str = Form("0"),
+    lazos_por_metro_tela: str = Form(...),
+    lazos_por_barra_silicon: str = Form(...),
+    cantidad_ganchos: str = Form(...),
+    usa_hilo: str = Form(""),
+    minutos_elaboracion: str = Form(...),
     imagen: UploadFile | None = File(None),
     imagen_predeterminada: str = Form(""),
     db: Session = Depends(get_db),
 ):
     nombre = nombre.strip()
-    costo = _parsear_entero_no_negativo(costo_produccion)
     precio = _parsear_entero_no_negativo(precio_publico)
     stock = _parsear_entero_no_negativo(stock_inicial)
+    datos_materiales = _parsear_datos_materiales_form(
+        lazos_por_metro_tela, lazos_por_barra_silicon, cantidad_ganchos, usa_hilo, minutos_elaboracion
+    )
 
-    if not nombre or costo is None or precio is None or stock is None:
+    if not nombre or precio is None or stock is None or datos_materiales is None:
         return JSONResponse(
             status_code=422,
-            content={"error": "Revisá el nombre, el costo, el precio y el stock inicial."},
+            content={"error": "Revisá el nombre, el precio, el stock inicial y los datos de materiales."},
         )
 
     try:
         producto = productos_service.crear_producto(
             db,
             nombre=nombre,
-            costo_produccion=costo,
             precio_publico=precio,
             stock_inicial=stock,
+            **datos_materiales,
         )
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})
@@ -1019,8 +1096,9 @@ async def productos_nuevo_guardar(
         db.refresh(producto)
 
     configuracion = seguridad_service.obtener_configuracion(db)
+    tasa_actual = _tasa_bolivares_actual(db)
     return JSONResponse(content={
-        "producto": _serializar_producto(producto),
+        "producto": _serializar_producto(producto, tasa_actual),
         "estado": _estado_producto(producto.stock_actual, configuracion.limite_poco_stock),
     })
 
@@ -1058,8 +1136,9 @@ async def productos_ajustar_guardar(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     configuracion = seguridad_service.obtener_configuracion(db)
+    tasa_actual = _tasa_bolivares_actual(db)
     return JSONResponse(content={
-        "producto": _serializar_producto(producto),
+        "producto": _serializar_producto(producto, tasa_actual),
         "estado": _estado_producto(producto.stock_actual, configuracion.limite_poco_stock),
     })
 
@@ -1068,22 +1147,28 @@ async def productos_ajustar_guardar(
 async def productos_editar_guardar(
     producto_id: int,
     nombre: str = Form(...),
-    costo_produccion: str = Form(...),
     precio_publico: str = Form(...),
     stock: str = Form(...),
+    lazos_por_metro_tela: str = Form(...),
+    lazos_por_barra_silicon: str = Form(...),
+    cantidad_ganchos: str = Form(...),
+    usa_hilo: str = Form(""),
+    minutos_elaboracion: str = Form(...),
     imagen: UploadFile | None = File(None),
     imagen_predeterminada: str = Form(""),
     db: Session = Depends(get_db),
 ):
     nombre = nombre.strip()
-    costo = _parsear_entero_no_negativo(costo_produccion)
     precio = _parsear_entero_no_negativo(precio_publico)
     stock_valor = _parsear_entero_no_negativo(stock)
+    datos_materiales = _parsear_datos_materiales_form(
+        lazos_por_metro_tela, lazos_por_barra_silicon, cantidad_ganchos, usa_hilo, minutos_elaboracion
+    )
 
-    if not nombre or costo is None or precio is None or stock_valor is None:
+    if not nombre or precio is None or stock_valor is None or datos_materiales is None:
         return JSONResponse(
             status_code=422,
-            content={"error": "Revisá el nombre, el costo, el precio y el stock."},
+            content={"error": "Revisá el nombre, el precio, el stock y los datos de materiales."},
         )
 
     imagen_final = ""
@@ -1101,10 +1186,10 @@ async def productos_editar_guardar(
             db,
             producto_id,
             nombre=nombre,
-            costo_produccion=costo,
             precio_publico=precio,
             stock=stock_valor,
             imagen=imagen_final,
+            **datos_materiales,
         )
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"error": str(error)})
@@ -1113,8 +1198,9 @@ async def productos_editar_guardar(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     configuracion = seguridad_service.obtener_configuracion(db)
+    tasa_actual = _tasa_bolivares_actual(db)
     return JSONResponse(content={
-        "producto": _serializar_producto(producto),
+        "producto": _serializar_producto(producto, tasa_actual),
         "estado": _estado_producto(producto.stock_actual, configuracion.limite_poco_stock),
     })
 
@@ -1132,11 +1218,11 @@ async def productos_eliminar_guardar(producto_id: int, db: Session = Depends(get
 @app.get("/pedidos")
 async def pedidos(request: Request, db: Session = Depends(get_db)):
     configuracion = seguridad_service.obtener_configuracion(db)
+    tasa_actual = _tasa_bolivares_actual(db)
     productos_con_estado = [
-        {**_serializar_producto(p), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
+        {**_serializar_producto(p, tasa_actual), "estado": _estado_producto(p.stock_actual, configuracion.limite_poco_stock)}
         for p in productos_service.listar_productos_activos(db)
     ]
-    tasa_actual = _tasa_bolivares_actual(db)
     pedidos_lista = [_venta_enriquecida(p, tasa_actual) for p in pedidos_service.listar_pedidos_activos(db)]
     pedidos_lista = [p for p in pedidos_lista if p is not None]
     clientes = [clientas_service.serializar_clienta(db, c) for c in clientas_service.listar_clientas_activas(db)]
@@ -1360,6 +1446,11 @@ async def configuracion_tasa_bcv_actualizar(db: Session = Depends(get_db)):
     # (ni con la consulta al BCV ok, ni si falla y hay que mantener la
     # tasa anterior) — acá solo se traduce el resultado a JSON.
     resultado = tasa_cambio_service.actualizar_tasa_automatica(db)
+    if resultado["ok"]:
+        # El costo de los productos que usan "Mis materiales" está en
+        # bolívares y se convierte a dólares con esta tasa — una tasa
+        # nueva los deja desactualizados hasta que se recalculan acá.
+        materiales_service.recalcular_productos_con_materiales(db)
     return JSONResponse(content=resultado)
 
 
@@ -1381,7 +1472,122 @@ async def configuracion_tasa_bcv_manual(
     except ErrorNegocio as error:
         return JSONResponse(status_code=422, content={"ok": False, "error": str(error)})
 
+    materiales_service.recalcular_productos_con_materiales(db)
     return JSONResponse(content=resultado)
+
+
+def _serializar_material(material) -> dict:
+    meta = materiales_service.METADATA_MATERIAL[material.tipo]
+    return {
+        "tipo": material.tipo,
+        "nombre": material.nombre,
+        "unidad_compra": material.unidad_compra,
+        "usa_rendimiento": meta["usa_rendimiento"],
+        "precio": float(material.precio),
+        "precio_formateado": tasa_cambio_service.formatear_bolivares(material.precio),
+        "rendimiento": material.rendimiento,
+    }
+
+
+@app.get("/materiales")
+async def materiales_pantalla(request: Request, db: Session = Depends(get_db)):
+    configuracion_actual = seguridad_service.obtener_configuracion(db)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="materiales.html",
+        context={
+            "active_nav": None,
+            "materiales": [_serializar_material(m) for m in materiales_service.listar_materiales(db)],
+            "configuracion": configuracion_actual,
+        },
+    )
+
+
+@app.post("/materiales/{tipo}/actualizar")
+async def materiales_actualizar(
+    tipo: str,
+    precio: str = Form(...),
+    rendimiento: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    try:
+        precio_decimal = Decimal(precio.strip().replace(",", "."))
+    except InvalidOperation:
+        return JSONResponse(status_code=422, content={"error": "Ingresá un precio válido."})
+
+    rendimiento_num = _parsear_entero_no_negativo(rendimiento) if rendimiento.strip() else None
+
+    try:
+        material = materiales_service.actualizar_material(db, tipo, precio_decimal, rendimiento_num)
+    except ErrorNegocio as error:
+        return JSONResponse(status_code=422, content={"error": str(error)})
+
+    return JSONResponse(content={"material": _serializar_material(material)})
+
+
+@app.post("/configuracion/produccion")
+async def configuracion_produccion_guardar(
+    porcentaje_pequenos_materiales: str = Form(...),
+    valor_hora_trabajo: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        porcentaje = Decimal(porcentaje_pequenos_materiales.strip().replace(",", "."))
+        valor_hora = Decimal(valor_hora_trabajo.strip().replace(",", "."))
+    except InvalidOperation:
+        return JSONResponse(status_code=422, content={"error": "Ingresá valores numéricos válidos."})
+
+    if porcentaje < 0 or valor_hora < 0:
+        return JSONResponse(status_code=422, content={"error": "Los valores no pueden ser negativos."})
+
+    configuracion_actual = seguridad_service.obtener_configuracion(db)
+    configuracion_actual.porcentaje_pequenos_materiales = porcentaje
+    configuracion_actual.valor_hora_trabajo = valor_hora
+    db.commit()
+
+    materiales_service.recalcular_productos_con_materiales(db)
+
+    return JSONResponse(content={
+        "ok": True,
+        "porcentaje_pequenos_materiales": float(porcentaje),
+        "valor_hora_trabajo": float(valor_hora),
+    })
+
+
+@app.post("/materiales/calcular-costo")
+async def materiales_calcular_costo(
+    lazos_por_metro_tela: str = Form(...),
+    lazos_por_barra_silicon: str = Form(...),
+    cantidad_ganchos: str = Form(...),
+    usa_hilo: str = Form(""),
+    minutos_elaboracion: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Vista previa en vivo para el formulario de producto (ver
+    "Lo que costó hacerlo" en app.js) — no guarda nada."""
+
+    datos = _parsear_datos_materiales_form(
+        lazos_por_metro_tela, lazos_por_barra_silicon, cantidad_ganchos, usa_hilo, minutos_elaboracion
+    )
+    if datos is None:
+        return JSONResponse(status_code=422, content={"error": "Completá los datos de materiales."})
+
+    try:
+        desglose = materiales_service.calcular_costo_bs(db, **datos)
+    except ErrorNegocio as error:
+        return JSONResponse(status_code=422, content={"error": str(error)})
+
+    tasa_activa = tasa_cambio_service.obtener_tasa_activa(db)
+    tasa_bolivares = tasa_activa.tasa_bolivares if tasa_activa else None
+    total_usd = materiales_service.convertir_bolivares_a_usd(desglose["total_bs"], tasa_bolivares)
+
+    return JSONResponse(content={
+        "total_bs": float(desglose["total_bs"]),
+        "total_bs_formateado": tasa_cambio_service.formatear_bolivares(desglose["total_bs"]),
+        "total_usd": float(total_usd) if total_usd is not None else None,
+        "total_usd_formateado": tasa_cambio_service.formatear_usd(total_usd) if total_usd is not None else None,
+    })
 
 
 @app.get("/ayuda")

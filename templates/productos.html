@@ -41,6 +41,11 @@
             data-costo="{{ p.costo_produccion }}"
             data-precio="{{ p.precio_publico }}"
             data-stock="{{ p.stock }}"
+            data-lazos-tela="{{ p.lazos_por_metro_tela or '' }}"
+            data-lazos-silicon="{{ p.lazos_por_barra_silicon or '' }}"
+            data-ganchos="{{ p.cantidad_ganchos if p.cantidad_ganchos is not none else '' }}"
+            data-usa-hilo="{{ p.usa_hilo | lower }}"
+            data-minutos="{{ p.minutos_elaboracion or '' }}"
         >
 
             <div class="bow-card__image">
@@ -151,16 +156,8 @@
                 </div>
             </div>
 
-            <div class="client-form__field">
-                <label for="edit-product-costo">Costo de producción</label>
-                <div class="client-form__input-wrap">
-                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M11 3.5H19a1 1 0 0 1 1 1v8L12.5 20 3.5 11 11 3.5Z"></path>
-                        <circle cx="15.2" cy="7.2" r="1.4"></circle>
-                    </svg>
-                    <input type="number" id="edit-product-costo" name="costo_produccion" min="0" step="1" required>
-                </div>
-            </div>
+            {% set form_prefix = "edit-product" %}
+            {% include "_materiales_producto_campos.html" %}
 
             <div class="client-form__field">
                 <label for="edit-product-precio">Precio al público</label>

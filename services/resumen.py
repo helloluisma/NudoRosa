@@ -17,14 +17,19 @@ def resumen_dia(db: Session, limite_poco_stock: int) -> dict:
     hoy = date.today()
 
     ventas_hoy = db.execute(
-        select(func.count(Pedido.id), func.coalesce(func.sum(Pedido.total), 0), func.coalesce(func.sum(Pedido.ganancia_total), 0))
+        select(
+            func.count(Pedido.id),
+            func.coalesce(func.sum(Pedido.total), 0),
+            func.coalesce(func.sum(Pedido.costo_total), 0),
+            func.coalesce(func.sum(Pedido.ganancia_total), 0),
+        )
         .where(
             Pedido.estado_entrega == EstadoEntrega.ENTREGADO,
             Pedido.estado_pago == EstadoPago.PAGADO,
             Pedido.fecha_creacion == hoy,
         )
     ).one()
-    ventas_count, ingresos, ganancia = ventas_hoy
+    ventas_count, ingresos, costo, ganancia = ventas_hoy
 
     pedidos_activos = db.scalar(
         select(func.count(Pedido.id)).where(
@@ -66,6 +71,7 @@ def resumen_dia(db: Session, limite_poco_stock: int) -> dict:
     return {
         "ventas_completadas_hoy": ventas_count,
         "ingresos_hoy": ingresos,
+        "costo_hoy": costo,
         "ganancia_hoy": ganancia,
         "pedidos_activos": pedidos_activos,
         "cobros_pendientes": cobros_pendientes,

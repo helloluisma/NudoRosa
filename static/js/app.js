@@ -767,6 +767,11 @@ function crearTarjetaBowCard(grid, producto) {
     tarjeta.dataset.costo = producto.costo_produccion;
     tarjeta.dataset.precio = producto.precio_publico;
     tarjeta.dataset.stock = producto.stock;
+    tarjeta.dataset.lazosTela = producto.lazos_por_metro_tela ?? "";
+    tarjeta.dataset.lazosSilicon = producto.lazos_por_barra_silicon ?? "";
+    tarjeta.dataset.ganchos = producto.cantidad_ganchos ?? "";
+    tarjeta.dataset.usaHilo = producto.usa_hilo;
+    tarjeta.dataset.minutos = producto.minutos_elaboracion ?? "";
 
     tarjeta.innerHTML = `
         <div class="bow-card__image">
@@ -947,6 +952,7 @@ function initNewProductButton() {
             document.querySelector("#new-product-form").reset();
             document.querySelector("#new-product-preview").innerHTML = ICONO_CAMARA_INVENTARIO;
             document.querySelector("#new-product-error").hidden = true;
+            document.querySelector("#new-product-costo-preview").hidden = true;
             limpiarSeleccionImagenProducto("new-product");
             abrirHojaInferior(modal);
         });
@@ -997,6 +1003,7 @@ function initNewProductForm() {
             modal.hidden = true;
             form.reset();
             preview.innerHTML = ICONO_CAMARA_INVENTARIO;
+            document.querySelector("#new-product-costo-preview").hidden = true;
             limpiarSeleccionImagenProducto("new-product");
             mostrarToast("Producto agregado ✓");
         } catch (err) {
@@ -1028,10 +1035,16 @@ function abrirModalEditarProducto(tarjeta) {
 
     document.querySelector("#edit-product-id").value = tarjeta.dataset.productId;
     document.querySelector("#edit-product-nombre").value = tarjeta.dataset.nombre;
-    document.querySelector("#edit-product-costo").value = tarjeta.dataset.costo;
     document.querySelector("#edit-product-precio").value = tarjeta.dataset.precio;
     refrescarHintBolivares("edit-product-precio", "edit-product-precio-bs");
     document.querySelector("#edit-product-stock").value = tarjeta.dataset.stock;
+
+    document.querySelector("#edit-product-lazos-tela").value = tarjeta.dataset.lazosTela || "";
+    document.querySelector("#edit-product-lazos-silicon").value = tarjeta.dataset.lazosSilicon || "";
+    document.querySelector("#edit-product-ganchos").value = tarjeta.dataset.ganchos || "";
+    document.querySelector("#edit-product-usa-hilo").checked = tarjeta.dataset.usaHilo !== "false";
+    document.querySelector("#edit-product-minutos").value = tarjeta.dataset.minutos || "";
+    calcularCostoEnVivo("edit-product");
 
     preview.innerHTML = imagen ? `<img src="${imagen}" alt="">` : ICONO_CAMARA_INVENTARIO;
     error.hidden = true;
@@ -1074,6 +1087,11 @@ function actualizarTarjetaBowCard(producto) {
     tarjeta.dataset.costo = producto.costo_produccion;
     tarjeta.dataset.precio = producto.precio_publico;
     tarjeta.dataset.stock = producto.stock;
+    tarjeta.dataset.lazosTela = producto.lazos_por_metro_tela ?? "";
+    tarjeta.dataset.lazosSilicon = producto.lazos_por_barra_silicon ?? "";
+    tarjeta.dataset.ganchos = producto.cantidad_ganchos ?? "";
+    tarjeta.dataset.usaHilo = producto.usa_hilo;
+    tarjeta.dataset.minutos = producto.minutos_elaboracion ?? "";
 
     const nombreEl = tarjeta.querySelector("strong");
     if (nombreEl) {
@@ -1228,6 +1246,10 @@ function formatoBolivares(valor) {
     return `Bs. ${Number(valor).toLocaleString("es", OPCIONES_MONEDA_ES)}`;
 }
 
+function formatoNumeroEs(valor) {
+    return Number(valor).toLocaleString("es", OPCIONES_MONEDA_ES);
+}
+
 /*
  * Hint "≈ Bs. X" en vivo bajo "Precio al público" (nuevo producto,
  * editar producto, ajustar inventario) — el precio se sigue
@@ -1264,6 +1286,67 @@ function initHintsBolivaresPrecio() {
 }
 
 document.addEventListener("DOMContentLoaded", initHintsBolivaresPrecio);
+
+/*
+ * "Lo que costó hacerlo" en el formulario de producto (ver
+ * _materiales_producto_campos.html): las 5 preguntas de "Mis
+ * materiales" se mandan al servidor (services/materiales.py hace el
+ * cálculo real, en bolívares, con los precios vigentes) y la
+ * respuesta se muestra en dólares como valor principal y bolívares
+ * como referencia abajo — mismo criterio que refrescarHintBolivares.
+ * Debounced porque se dispara con cada tecla.
+ */
+const costoEnVivoTimeouts = {};
+
+async function calcularCostoEnVivo(prefix) {
+    const lazosTela = document.querySelector(`#${prefix}-lazos-tela`)?.value;
+    const lazosSilicon = document.querySelector(`#${prefix}-lazos-silicon`)?.value;
+    const ganchos = document.querySelector(`#${prefix}-ganchos`)?.value;
+    const usaHilo = document.querySelector(`#${prefix}-usa-hilo`)?.checked;
+    const minutos = document.querySelector(`#${prefix}-minutos`)?.value;
+    const preview = document.querySelector(`#${prefix}-costo-preview`);
+
+    if (!preview) {
+        return;
+    }
+
+    if (!lazosTela || !lazosSilicon || !ganchos || !minutos) {
+        preview.hidden = true;
+        return;
+    }
+
+    const formData = new FormData();
+    formData.set("lazos_por_metro_tela", lazosTela);
+    formData.set("lazos_por_barra_silicon", lazosSilicon);
+    formData.set("cantidad_ganchos", ganchos);
+    formData.set("usa_hilo", usaHilo ? "on" : "");
+    formData.set("minutos_elaboracion", minutos);
+
+    try {
+        const datos = await enviarFormulario("/materiales/calcular-costo", formData);
+
+        document.querySelector(`#${prefix}-costo-preview-usd`).textContent = datos.total_usd_formateado || "";
+        document.querySelector(`#${prefix}-costo-preview-bs`).textContent = datos.total_bs_formateado || "";
+        preview.hidden = false;
+    } catch (err) {
+        preview.hidden = true;
+    }
+}
+
+function initMaterialesCostoEnVivo() {
+    ["new-product", "edit-product"].forEach((prefix) => {
+        const campos = document.querySelectorAll(`#${prefix}-form .materiales-campo-costo`);
+
+        campos.forEach((campo) => {
+            campo.addEventListener("input", () => {
+                clearTimeout(costoEnVivoTimeouts[prefix]);
+                costoEnVivoTimeouts[prefix] = setTimeout(() => calcularCostoEnVivo(prefix), 300);
+            });
+        });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initMaterialesCostoEnVivo);
 
 function irAPasoVenta(paso) {
     document.querySelectorAll("#venta-steps .pedido-steps__step").forEach((paso_) => {
@@ -2340,6 +2423,119 @@ function initTasaBcv() {
 }
 
 document.addEventListener("DOMContentLoaded", initTasaBcv);
+
+/*
+ * Configuración → Producción: el % de "pequeños materiales" y el
+ * valor de la hora de trabajo que usa "Mis materiales" para calcular
+ * el costo de elaboración de cada lazo (ver services/materiales.py).
+ * Mismo patrón que initSeguridad.
+ */
+function initConfiguracionProduccion() {
+    const trigger = document.querySelector("#produccion-row");
+    const modal = document.querySelector("#produccion-modal");
+
+    if (!trigger || !modal) {
+        return;
+    }
+
+    trigger.addEventListener("click", () => abrirHojaInferior(modal));
+
+    document.querySelector("#produccion-form")?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const error = document.querySelector("#produccion-error");
+        error.hidden = true;
+
+        const formData = new FormData(event.target);
+
+        try {
+            const datos = await enviarFormulario("/configuracion/produccion", formData);
+
+            document.querySelector("#produccion-subtitulo").textContent =
+                `${formatoNumeroEs(datos.porcentaje_pequenos_materiales)}% en materiales chiquitos · ` +
+                `${formatoBolivares(datos.valor_hora_trabajo)} la hora de trabajo`;
+            modal.hidden = true;
+            mostrarToast("Costo de elaboración actualizado ✓");
+        } catch (err) {
+            error.textContent = err.message;
+            error.hidden = false;
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initConfiguracionProduccion);
+
+/*
+ * "Mis materiales": un solo modal de edición reutilizado por las 4
+ * filas (tela, silicón, gancho, hilo) — se rellena con los data-*
+ * de la fila tocada, igual que abrirModalEditarProducto con las
+ * tarjetas de producto. El campo "rendimiento" solo se muestra para
+ * los materiales que lo usan (gancho y hilo — ver
+ * services/materiales.py::METADATA_MATERIAL).
+ */
+function initMisMateriales() {
+    const modal = document.querySelector("#material-edit-modal");
+    const form = document.querySelector("#material-edit-form");
+
+    if (!modal || !form) {
+        return;
+    }
+
+    document.querySelectorAll("#materiales-lista .list-row[data-tipo]").forEach((fila) => {
+        fila.addEventListener("click", () => {
+            const usaRendimiento = fila.dataset.usaRendimiento === "true";
+
+            document.querySelector("#material-edit-modal-title").textContent = fila.dataset.nombre;
+            document.querySelector("#material-edit-tipo").value = fila.dataset.tipo;
+            document.querySelector("#material-edit-precio-label").textContent = `Precio por ${fila.dataset.unidad}`;
+            document.querySelector("#material-edit-precio").value = fila.dataset.precio;
+            document.querySelector("#material-edit-rendimiento-field").hidden = !usaRendimiento;
+            document.querySelector("#material-edit-rendimiento-label").textContent =
+                fila.dataset.tipo === "hilo" ? "Lazos por carrete" : "Ganchos por paquete";
+            document.querySelector("#material-edit-rendimiento").value = fila.dataset.rendimiento || "";
+            document.querySelector("#material-edit-rendimiento").required = usaRendimiento;
+            document.querySelector("#material-edit-error").hidden = true;
+
+            abrirHojaInferior(modal);
+        });
+    });
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const error = document.querySelector("#material-edit-error");
+        error.hidden = true;
+
+        const tipo = document.querySelector("#material-edit-tipo").value;
+        const formData = new FormData(form);
+
+        try {
+            const datos = await enviarFormulario(`/materiales/${tipo}/actualizar`, formData);
+            const fila = document.querySelector(`#material-row-${tipo}`);
+            const material = datos.material;
+
+            fila.dataset.precio = material.precio;
+            fila.dataset.rendimiento = material.rendimiento || "";
+
+            const subtitulo = fila.querySelector("small");
+            let textoSubtitulo = `${material.precio_formateado} por ${material.unidad_compra}`;
+            if (material.usa_rendimiento && material.rendimiento) {
+                textoSubtitulo += tipo === "hilo"
+                    ? ` · rinde ${material.rendimiento} lazos`
+                    : ` · ${material.rendimiento} ganchos por paquete`;
+            }
+            subtitulo.textContent = textoSubtitulo;
+
+            modal.hidden = true;
+            mostrarToast("Material actualizado ✓");
+        } catch (err) {
+            error.textContent = err.message;
+            error.hidden = false;
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", initMisMateriales);
 
 /*
  * Progressive Web App: registro del Service Worker y tarjeta propia

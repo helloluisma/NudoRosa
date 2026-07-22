@@ -49,6 +49,15 @@
                 {% if tasa_actual %}<small class="summary-item__bs">{{ formatear_bolivares(convertir_usd_a_bolivares(resumen.ganancia_hoy, tasa_actual)) }}</small>{% endif %}
             </div>
         </div>
+
+        <div class="summary-item">
+            <img src="/static/images/inventario.svg" alt="Lo que costó hacer los lazos">
+            <div class="summary-item__text">
+                <small>Lo que costó hacer los lazos</small>
+                <strong>{{ formatear_usd(resumen.costo_hoy) }}</strong>
+                {% if tasa_actual %}<small class="summary-item__bs">{{ formatear_bolivares(convertir_usd_a_bolivares(resumen.costo_hoy, tasa_actual)) }}</small>{% endif %}
+            </div>
+        </div>
     </div>
 </section>
 {% endblock %}

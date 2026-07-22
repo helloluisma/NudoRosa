@@ -76,6 +76,35 @@
         </li>
     </ul>
 
+    <h2 class="section-title">Producción</h2>
+
+    <ul class="list">
+        <li>
+            <a class="list-row" href="/materiales">
+                <span class="list-row__avatar" aria-hidden="true">🧵</span>
+                <span class="list-row__body">
+                    <strong>Mis materiales</strong>
+                    <small>Precio de la tela, el silicón, los ganchos y el hilo</small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </a>
+        </li>
+
+        <li>
+            <button type="button" class="list-row" id="produccion-row">
+                <span class="list-row__avatar" aria-hidden="true">⏱️</span>
+                <span class="list-row__body">
+                    <strong>Costo de elaboración</strong>
+                    <small id="produccion-subtitulo">
+                        {{ configuracion.porcentaje_pequenos_materiales }}% en materiales chiquitos ·
+                        {{ formatear_bolivares(configuracion.valor_hora_trabajo) }} la hora de trabajo
+                    </small>
+                </span>
+                <span class="list-row__chevron" aria-hidden="true">›</span>
+            </button>
+        </li>
+    </ul>
+
     <h2 class="section-title">General</h2>
 
     <!-- Solo interfaz por ahora: cada fila se conecta a su propia
@@ -277,6 +306,67 @@
             <button type="submit" class="client-form__submit" style="margin-top: var(--space-4-fl);">
                 <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
                 <span>Guardar tasa</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Editar el % de pequeños materiales y el valor de la hora de
+     trabajo — usados por "Mis materiales" para calcular el costo de
+     elaboración de cada lazo (ver services/materiales.py). -->
+<div class="modal modal--sheet" id="produccion-modal" hidden>
+    <div class="modal__backdrop" data-modal-close></div>
+
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="produccion-modal-title">
+        <span class="avatar-sheet__handle" aria-hidden="true"></span>
+        <p class="avatar-sheet__title" id="produccion-modal-title">Costo de elaboración</p>
+
+        <form class="inventory-sheet-form" id="produccion-form">
+            <div class="client-form__field">
+                <label for="produccion-porcentaje">Pequeños materiales (%)</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    <input
+                        type="number"
+                        id="produccion-porcentaje"
+                        name="porcentaje_pequenos_materiales"
+                        min="0"
+                        step="0.01"
+                        inputmode="decimal"
+                        value="{{ configuracion.porcentaje_pequenos_materiales }}"
+                        required
+                    >
+                </div>
+                <small class="client-form__hint-bs">Cubre silicón de repuesto, cinta y otros insumos chiquitos.</small>
+            </div>
+
+            <div class="client-form__field" style="margin-top: var(--space-3-fl);">
+                <label for="produccion-valor-hora">Valor de una hora de trabajo (Bs.)</label>
+                <div class="client-form__input-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="2" x2="12" y2="22"></line>
+                        <path d="M17 6.5H9.8a3 3 0 0 0 0 6h4.4a3 3 0 0 1 0 6H6.5"></path>
+                    </svg>
+                    <input
+                        type="number"
+                        id="produccion-valor-hora"
+                        name="valor_hora_trabajo"
+                        min="0"
+                        step="0.01"
+                        inputmode="decimal"
+                        value="{{ configuracion.valor_hora_trabajo }}"
+                        required
+                    >
+                </div>
+            </div>
+
+            <p class="inventory-modal__error" id="produccion-error" hidden></p>
+
+            <button type="submit" class="client-form__submit" style="margin-top: var(--space-4-fl);">
+                <img class="client-form__submit-bow" src="/static/images/lazosencillo.png" alt="">
+                <span>Guardar cambios</span>
             </button>
         </form>
     </div>

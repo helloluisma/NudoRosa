@@ -103,6 +103,18 @@ class Configuracion(Base):
     moneda: Mapped[str] = mapped_column(String(8), default="$")
     version_app: Mapped[str] = mapped_column(String(20), default="1.0")
     logo: Mapped[str] = mapped_column(String(255), default="/static/images/logo.png")
+
+    # "Mis materiales" (ver services/materiales.py): porcentaje que se
+    # suma sobre el subtotal de tela+silicón+gancho+hilo para cubrir
+    # insumos chiquitos (silicón de repuesto, cinta, etc. — no se
+    # cargan uno por uno) y el valor de una hora de trabajo, en
+    # bolívares, para calcular la mano de obra de cada lazo
+    # (minutos_elaboracion del producto × valor_hora_trabajo / 60).
+    # valor_hora_trabajo en 0 = todavía no configurado — nunca se
+    # inventa un valor.
+    porcentaje_pequenos_materiales: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("5"))
+    valor_hora_trabajo: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0"))
+
     actualizado_en: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
@@ -183,14 +195,53 @@ class Producto(Base):
         CheckConstraint("costo_produccion >= 0", name="ck_producto_costo_no_negativo"),
         CheckConstraint("precio_publico >= 0", name="ck_producto_precio_no_negativo"),
         CheckConstraint("stock_actual >= 0", name="ck_producto_stock_no_negativo"),
+        CheckConstraint(
+            "lazos_por_metro_tela IS NULL OR lazos_por_metro_tela > 0",
+            name="ck_producto_lazos_metro_tela_positivo",
+        ),
+        CheckConstraint(
+            "lazos_por_barra_silicon IS NULL OR lazos_por_barra_silicon > 0",
+            name="ck_producto_lazos_barra_silicon_positivo",
+        ),
+        CheckConstraint(
+            "cantidad_ganchos IS NULL OR cantidad_ganchos >= 0",
+            name="ck_producto_cantidad_ganchos_no_negativa",
+        ),
+        CheckConstraint(
+            "minutos_elaboracion IS NULL OR minutos_elaboracion > 0",
+            name="ck_producto_minutos_elaboracion_positivo",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nombre: Mapped[str] = mapped_column(String(160))
     imagen: Mapped[str | None] = mapped_column(String(255), default=None)
-    costo_produccion: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Costo de elaboración: fuente de verdad en dólares (para poder
+    # compararse contra precio_publico y calcular ganancia_total sin
+    # mezclar monedas), pero para un producto que usa "Mis materiales"
+    # (ver services/materiales.py) ES UN VALOR DERIVADO — se recalcula
+    # solo, en vivo, a partir de los precios de materiales (en
+    # bolívares) y la tasa BCV vigente cada vez que se guarda el
+    # producto o cambia un precio de material. Numeric (no Integer,
+    # como precio_publico) porque un costo convertido desde bolívares
+    # casi siempre cae en centavos — con enteros, muchos lazos
+    # redondearían a $0 y la ganancia mostrada quedaría mal.
+    costo_produccion: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
     precio_publico: Mapped[int] = mapped_column(Integer, default=0)
     stock_actual: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Preguntas de "Mis materiales" (services/materiales.py). Todas
+    # nulas por defecto: un producto sin estas respuestas sigue
+    # usando su costo_produccion manual de siempre (compatibilidad con
+    # productos creados antes de esta funcionalidad). minutos_elaboracion
+    # no nulo es la señal de "este producto ya usa la calculadora".
+    lazos_por_metro_tela: Mapped[int | None] = mapped_column(Integer, default=None)
+    lazos_por_barra_silicon: Mapped[int | None] = mapped_column(Integer, default=None)
+    cantidad_ganchos: Mapped[int | None] = mapped_column(Integer, default=None)
+    usa_hilo: Mapped[bool] = mapped_column(default=True)
+    minutos_elaboracion: Mapped[int | None] = mapped_column(Integer, default=None)
+
     activo: Mapped[bool] = mapped_column(default=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     actualizado_en: Mapped[datetime] = mapped_column(
@@ -219,6 +270,41 @@ class ProductoColor(Base):
 
     producto: Mapped["Producto"] = relationship(back_populates="colores")
     color: Mapped["Color"] = relationship()
+
+
+TIPOS_MATERIAL = ("tela", "silicon", "gancho", "hilo")
+
+
+class Material(Base):
+    """
+    "Mis materiales" (ver services/materiales.py). Fila fija por
+    tipo — se siembran las 4 (tela, silicón, gancho, hilo) una sola
+    vez al arrancar (asegurar_materiales_iniciales), nunca se crean ni
+    borran filas desde la UI, solo se edita precio/rendimiento.
+
+    precio está en BOLÍVARES (así los compra Ivanna) — nunca en
+    dólares. rendimiento es una constante del material, no del
+    producto: cuántos ganchos trae un paquete, o cuántos lazos rinde
+    un carrete de hilo. Para tela y silicón el rendimiento depende de
+    cada producto (cuántos lazos salen de un metro/barra), así que
+    vive en Producto, no acá (rendimiento queda NULL para esos dos).
+    """
+
+    __tablename__ = "materiales"
+    __table_args__ = (
+        CheckConstraint("precio >= 0", name="ck_material_precio_no_negativo"),
+        CheckConstraint("rendimiento IS NULL OR rendimiento > 0", name="ck_material_rendimiento_positivo"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(20), unique=True)
+    nombre: Mapped[str] = mapped_column(String(60))
+    unidad_compra: Mapped[str] = mapped_column(String(30))
+    precio: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
+    rendimiento: Mapped[int | None] = mapped_column(Integer, default=None)
+    actualizado_en: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class Pedido(Base):
@@ -255,8 +341,12 @@ class Pedido(Base):
 
     subtotal: Mapped[int] = mapped_column(Integer, default=0)
     total: Mapped[int] = mapped_column(Integer, default=0)
-    costo_total: Mapped[int] = mapped_column(Integer, default=0)
-    ganancia_total: Mapped[int] = mapped_column(Integer, default=0)
+    # Numeric (no Integer): costo_total viene de costo_unitario, que
+    # puede tener centavos reales al convertir desde bolívares (ver
+    # Producto.costo_produccion). ganancia_total hereda la misma
+    # precisión porque es total(entero) - costo_total.
+    costo_total: Mapped[Decimal] = mapped_column(Numeric(14, 4), default=Decimal("0"))
+    ganancia_total: Mapped[Decimal] = mapped_column(Numeric(14, 4), default=Decimal("0"))
 
     # Se escriben en dos momentos distintos, a propósito:
     #   1. Al crear el pedido (services/pedidos.py::crear_pedido) —
@@ -309,9 +399,11 @@ class PedidoItem(Base):
 
     cantidad: Mapped[int] = mapped_column(Integer)
     precio_unitario: Mapped[int] = mapped_column(Integer)
-    costo_unitario: Mapped[int] = mapped_column(Integer)
+    # Numeric: ver el comentario en Pedido.costo_total sobre por qué
+    # el costo necesita centavos y el precio de venta no.
+    costo_unitario: Mapped[Decimal] = mapped_column(Numeric(12, 4))
     subtotal: Mapped[int] = mapped_column(Integer)
-    costo_subtotal: Mapped[int] = mapped_column(Integer)
+    costo_subtotal: Mapped[Decimal] = mapped_column(Numeric(14, 4))
 
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -365,7 +457,9 @@ class MovimientoInventario(Base):
     cantidad: Mapped[int] = mapped_column(Integer)
     stock_anterior: Mapped[int] = mapped_column(Integer)
     stock_nuevo: Mapped[int] = mapped_column(Integer)
-    costo_unitario: Mapped[int | None] = mapped_column(Integer, default=None)
+    # Numeric: puede recibir el costo calculado por "Mis materiales"
+    # (services/materiales.py), casi siempre con centavos.
+    costo_unitario: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), default=None)
     motivo: Mapped[str | None] = mapped_column(String(255), default=None)
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), default=None)
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
